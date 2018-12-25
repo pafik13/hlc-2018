@@ -1,0 +1,2 @@
+docker build -t re1ax/node-web-app .
+docker run --rm -v /c/Users/re1ax/Documents/GitHub/hlcupdocs/data/test_accounts_241218/data/data.zip:/tmp/data/data.zip:ro  -p 8080:80 -d re1ax/node-web-app
