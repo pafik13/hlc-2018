@@ -1,0 +1,21 @@
+{
+    "apps" : [
+      {
+        "name": "accounts",
+        "script": "server.js",
+        "env": {
+          "PORT": 3003,
+          "NODE_ENV": "dev",
+          "DEBUG": "accounts*"
+        },
+        "env_production": {
+          "PORT": 8002,
+          "NODE_ENV": "production"
+        },
+        "log_date_format"   : "YYYY-MM-DD HH:mm ss",
+        "merge_logs"        : false,
+        "watch"             : true,
+        "exec_mode"         : "fork"
+      }
+    ]
+  }

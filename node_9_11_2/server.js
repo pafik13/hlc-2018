@@ -32,21 +32,45 @@ function dbmiddle(req, res, next) {
     res.send('Hello world\n');
   });
 
-  app.get('/premium', (req, res) => {
-    const rows = [];
-    req.db.each("SELECT * FROM accounts_premium LIMIT 3", (err, row) => {
-      if (err) {
-        res.json({err});
-      } else {
-        rows.push(row);
+  app.get('/premium', async (req, res) => {
+    const sql = "SELECT * FROM accounts_premium LIMIT 3";
+    const rows = await helper.func.selectAsync(req.db, sql);
+    // const rows = [];
+    // req.db.each("SELECT * FROM accounts_premium LIMIT 3", (err, row) => {
+    //   if (err) {
+    //     res.json({err});
+    //   } else {
+    //     rows.push(row);
+    //   }
+    // }, (err, cnt) => {
+    //   if (err) {
+    //     res.json({err});
+    //   } else {
+    //     res.json(rows);
+    //   }
+    // });
+    res.json(rows);
+  });
+
+  app.get('/query', (req, res) => {
+    const wheres = [];
+    // res.json(req.query);
+    const q = req.query;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const arr = prop.split('_');
+        const field = arr[0];
+        const oper = arr[1];
+        if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
+          const val = q[prop];
+          const op = helper.FILTER_OPERATIONS[oper];
+          console.log(`${field} : ${oper} : ${op} : ${val}`);
+          wheres.push(`${field} ${op} '${val}'`);
+        }
       }
-    }, (err, cnt) => {
-      if (err) {
-        res.json({err});
-      } else {
-        res.json(rows);
-      }
-    });
+    }
+    res.json(wheres);
+    console.log(wheres.join(" "));
   });
 
   try {
@@ -79,7 +103,8 @@ async function bootstrap() {
         DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
         DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
         
-        const lenAccs = data.accounts.length;
+        const lenAccs = process.env.ALL ? data.accounts.length : 10;
+        console.log(lenAccs);
         const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
