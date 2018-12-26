@@ -9,8 +9,10 @@
           "DEBUG": "accounts*"
         },
         "env_production": {
-          "PORT": 8002,
-          "NODE_ENV": "production"
+          "PORT": 8080,
+          "NODE_ENV": "production",
+          "DEBUG": "accounts*",
+          "ALL": true
         },
         "log_date_format"   : "YYYY-MM-DD HH:mm ss",
         "merge_logs"        : false,

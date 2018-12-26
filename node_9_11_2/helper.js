@@ -75,6 +75,7 @@ const FILTER_OPERATIONS = {
 
 function selectAsync (db, sql) {
   const log = debug.extend('selectAsync');
+  log(sql);
   return new Promise((resolve, reject) =>{
     const rows = [];
     db.each(sql, (err, row) => {

@@ -3,6 +3,8 @@ FROM node:9.11.2
 
 ENV DATA_PATH='/tmp/data/data.zip'
 ENV PORT=80
+ENV NODE_ENV=production
+ENV ALL=true
 
 # Create app directory
 WORKDIR /usr/src/app

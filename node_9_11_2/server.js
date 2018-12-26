@@ -8,6 +8,7 @@ const helper = require('./helper');
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
+const ALL = process.env.ALL || false;
 // const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
 const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
@@ -52,7 +53,7 @@ function dbmiddle(req, res, next) {
     res.json(rows);
   });
 
-  app.get('/query', (req, res) => {
+  app.get('/accounts/filter', async (req, res) => {
     const wheres = [];
     // res.json(req.query);
     const q = req.query;
@@ -69,8 +70,41 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-    res.json(wheres);
-    console.log(wheres.join(" "));
+    // res.json(wheres);
+    // console.log(wheres.join(" "));
+    const sql = `
+      SELECT email, country, id, status, birth
+        FROM accounts 
+       WHERE  ${wheres.join(' AND ')}`;
+    const rows = await helper.func.selectAsync(req.db, sql);
+    res.json({accounts: rows});
+  });
+
+  app.get('/accounts/group', async (req, res) => {
+    res.json({"groups": []});
+  });
+
+  app.get('/accounts/:id/recommend', async (req, res) => {
+    res.json({"accounts": []});
+  });
+
+  app.get('/accounts/:id/suggest', async (req, res) => {
+    res.json({"accounts": []});
+  });
+
+  app.post('/accounts/new', async (req, res) => {
+    res.status = 201;
+    res.json({});
+  });
+
+  app.post('/accounts/:id', async (req, res) => {
+    res.status = 202;
+    res.json({});
+  });
+
+  app.post('/accounts/likes', async (req, res) => {
+    res.status = 202;
+    res.json({});
   });
 
   try {
@@ -103,7 +137,7 @@ async function bootstrap() {
         DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
         DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
         
-        const lenAccs = process.env.ALL ? data.accounts.length : 10;
+        const lenAccs = ALL ? data.accounts.length : 10;
         console.log(lenAccs);
         const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
         for (let i = 0; i < lenAccs; i++) {
