@@ -53,31 +53,120 @@ function dbmiddle(req, res, next) {
     res.json(rows);
   });
 
+  
+  app.get('/premium_all', async (req, res) => {
+    const sql = `
+      SELECT ap.*, datetime(ap.finish, 'unixepoch') as dt
+           , case when date('now') between datetime(ap.start, 'unixepoch') and datetime(ap.finish, 'unixepoch') then 1 else 2 end as b
+           , strftime('%s', date('1990-01-01 00:00:00')) as s
+        FROM accounts_premium ap
+       WHERE strftime('%s', 'now') between ap.start and ap.finish
+    `;
+    const rows = await helper.func.selectAsync(req.db, sql);
+    res.json(rows);
+  });
+
+  app.get('/interests', async (req, res) => {
+    const q = req.query;
+    let sql = "SELECT * FROM accounts_interest LIMIT 30";
+    if (q.interests_constains) {
+      const vals = q["interests_constains"].split(',').map(i => `'${i}'`).join(',');
+      sql = `
+      WITH agg AS (SELECT acc_id, count(*) 
+        FROM accounts_interest
+       WHERE interest IN (${vals})
+       GROUP BY acc_id
+       HAVING (count(*) > 0)) 
+      SELECT * FROM agg`;
+    }
+
+    const rows = await helper.func.selectAsync(req.db, sql);
+    res.json(rows);
+  });
+
   app.get('/accounts/filter', async (req, res) => {
     const wheres = [];
+    let limit = false;
     // res.json(req.query);
     const q = req.query;
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
-        const arr = prop.split('_');
-        const field = arr[0];
-        const oper = arr[1];
-        if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
-          const val = q[prop];
-          const op = helper.FILTER_OPERATIONS[oper];
-          console.log(`${field} : ${oper} : ${op} : ${val}`);
-          wheres.push(`${field} ${op} '${val}'`);
+        const val = q[prop];
+        let vals = '';
+        let subsql = '';
+        switch (prop) {
+          case 'limit':
+            limit = val;
+            break;
+          case 'email_domain':
+            wheres.push(`email LIKE '%@${val}'`);
+            break;
+          case 'fname_any':
+            vals = val.split(',').map(i => `'${i}'`).join(',');
+            wheres.push(`fname IN (${vals})`);
+            break;
+          case 'sname_starts':
+            wheres.push(`sname LIKE '${val}%'`);
+            break;
+          case 'phone_code':
+            wheres.push(`phone LIKE '8(${val})%'`);
+            break;
+          case 'city_any':
+            vals = val.split(',').map(i => `'${i}'`).join(',');
+            wheres.push(`city IN (${vals})`);
+            break;
+          case 'birth_year':
+            wheres.push(`birth BETWEEN strftime('%s', date('${val}-01-01')) 
+              AND strftime('%s', datetime('${Number(val) + 1}-01-01')) - 1
+            `);
+            break;  
+          case 'premium_now':
+            wheres.push(`strftime('%s', 'now') between pstart and pfinish`);
+            break;
+          case 'interests_contains':
+            let valArr = val.split(',');
+            const cnt = valArr.length;
+            vals = valArr.map(i => `'${i}'`).join(',');           
+            subsql = `
+              SELECT acc_id
+                FROM accounts_interest 
+               WHERE interest IN (${vals})
+               GROUP BY acc_id
+              HAVING (count(*) >= ${cnt})
+            `;
+            let ids = await helper.func.selectAsync(req.db, sql).map((row) => row.acc_id).join(',');
+            wheres.push(`ext_id IN (${ids})`);
+            break;           
+        default:
+          const arr = prop.split('_');
+          const field = arr[0];
+          const oper = arr[1];
+          if (oper === 'null') {
+            if (Number(val)) { 
+              wheres.push(`${field} IS NULL`)
+            } else { 
+              wheres.push(`${field} IS NOT NULL`)
+            }
+          } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
+            // const val = q[prop];
+            const op = helper.FILTER_OPERATIONS[oper];
+            console.log(`${field} : ${oper} : ${op} : ${val}`);
+            wheres.push(`${field} ${op} '${val}'`);
+          }
+          break;
         }
       }
     }
     // res.json(wheres);
     // console.log(wheres.join(" "));
-    const sql = `
-      SELECT email, country, id, status, birth
-        FROM accounts 
-       WHERE  ${wheres.join(' AND ')}`;
+    // email, country, id, status, birth
+    let sql = `
+      SELECT *
+        FROM accounts
+       WHERE  ${wheres.join('\n AND ')}`;
+    if (limit) sql = sql + `\n LIMIT ${limit}`;
     const rows = await helper.func.selectAsync(req.db, sql);
-    res.json({accounts: rows});
+    res.json({accounts: rows, wheres});
   });
 
   app.get('/accounts/group', async (req, res) => {
@@ -137,16 +226,25 @@ async function bootstrap() {
         DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
         DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
         
-        const lenAccs = ALL ? data.accounts.length : 10;
+        const lenAccs = ALL ? data.accounts.length : 100;
         console.log(lenAccs);
         const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
           // console.log(acc);
-          stmtAcc.run([
-            acc.id, acc.email, acc.fname, acc.sname, acc.status,
-            acc.country, acc.city, acc.phone, acc.sex, acc.joined, acc.birth
-          ]);
+          if (acc.premium) {
+            stmtAcc.run([
+              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.birth, 1, acc.premium.start, acc.premium.finish
+            ]);
+          } else {
+            stmtAcc.run([
+              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.birth, null, null, null
+            ]);            
+          }
         }
         stmtAcc.finalize();
       

@@ -8,14 +8,17 @@ const SQL_CREATE_ACCOUNTS =
   , country text, city text
   , phone text, sex text
   , joined integer, birth integer
+  , premium integer
+  , pstart integer, pfinish integer
   , ext_id integer)`;
 
 const SQL_INSERT_ACCOUNTS =
   `INSERT INTO accounts
     ( ext_id, email, fname, sname, status
-    , country, city, phone, sex, joined, birth)
+    , country, city, phone, sex, joined 
+    , birth, premium, pstart, pfinish)
    VALUES
-    ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`;
+    ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`;
 
 const SQL_CREATE_ACCOUNTS_LIKE =
 `CREATE TABLE accounts_like
@@ -70,7 +73,8 @@ const FILTERED_COMP_FIELDS = [
 const FILTER_OPERATIONS = {
   "eq": "=",
   "neq": "!=",
-  "lt": "<"
+  "lt": "<",
+  "gt": ">"
 };
 
 function selectAsync (db, sql) {
