@@ -244,6 +244,7 @@ function dbmiddle(req, res, next) {
 })();
 
 async function bootstrap() {
+  console.time('bootstrap');
   console.log(`Starting bootstrap...`);
   console.log(`PATH=${PATH}`)
   // await sleep(1000);
@@ -257,7 +258,6 @@ async function bootstrap() {
       const data = JSON.parse(i.getData().toString('utf8'));
       console.log(Array.isArray(data.accounts));
       DB.serialize(function() {
-        DB.run("CREATE TABLE lorem (info TEXT)");
         DB.run(helper.SQL_CREATE_ACCOUNTS);
         DB.run(helper.SQL_CREATE_ACCOUNTS_LIKE);
         DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
@@ -319,19 +319,13 @@ async function bootstrap() {
           }
         }
         stmtAccInts.finalize();
-
-        // DB.each("SELECT * FROM accounts_premium LIMIT 3", function(err, row) {
-        //   if (err) throw err;
-        //   console.log(row);
-        // });
-
-
+        
+        DB.run("ANALYZE");
       });
-      
-      // DB.close();
     }
   });
   console.log(`Ended bootstrap...`);
+  console.timeEnd('bootstrap');
 }
 
 function sleep(ms){
