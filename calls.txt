@@ -1,0 +1,13 @@
+docker tag <ваш контейнер-решение> stor.highloadcup.ru/accounts/orange_avocet
+docker push stor.highloadcup.ru/accounts/orange_avocet
+
+pm2 start pm2.json --env dev
+pm2 start pm2.json --env production
+
+docker run --rm -v /c/Users/re1ax/Documents/GitHub/hlcupdocs/data/test_accounts_241218/data/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/node-web-app
+docker run --rm -v C:\Users\re1ax\Downloads\test_accounts_261218.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/node-web-app
+
+docker run --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/node-web-app
+
+
+test_accounts_261218.zip
