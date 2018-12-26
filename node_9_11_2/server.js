@@ -86,14 +86,17 @@ function dbmiddle(req, res, next) {
 
   app.get('/accounts/filter', async (req, res) => {
     const wheres = [];
+    let iSQL = '';
+    let lSQL = '';
     let limit = false;
+    let valArr = [];
+    let cnt = 0;
     // res.json(req.query);
     const q = req.query;
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
         let vals = '';
-        let subsql = '';
         switch (prop) {
           case 'limit':
             limit = val;
@@ -123,20 +126,31 @@ function dbmiddle(req, res, next) {
           case 'premium_now':
             wheres.push(`strftime('%s', 'now') between pstart and pfinish`);
             break;
+          case 'interests_any':
           case 'interests_contains':
-            let valArr = val.split(',');
-            const cnt = valArr.length;
+            valArr = val.split(',');
+            cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
-            subsql = `
-              SELECT acc_id
+            iSQL = `
+              SELECT acc_id AS ext_id
                 FROM accounts_interest 
                WHERE interest IN (${vals})
                GROUP BY acc_id
+            `;
+            if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`
+            break;   
+          case 'likes_contains':
+            valArr = val.split(',');
+            cnt = valArr.length;
+            vals = valArr.map(i => `'${i}'`).join(',');           
+            lSQL = `
+              SELECT acc_id AS ext_id
+                FROM accounts_like 
+               WHERE like_id IN (${vals})
+               GROUP BY acc_id
               HAVING (count(*) >= ${cnt})
             `;
-            let ids = await helper.func.selectAsync(req.db, sql).map((row) => row.acc_id).join(',');
-            wheres.push(`ext_id IN (${ids})`);
-            break;           
+            break;             
         default:
           const arr = prop.split('_');
           const field = arr[0];
@@ -162,8 +176,31 @@ function dbmiddle(req, res, next) {
     // email, country, id, status, birth
     let sql = `
       SELECT *
-        FROM accounts
-       WHERE  ${wheres.join('\n AND ')}`;
+        FROM accounts`;
+    if (iSQL || lSQL) {
+      if (iSQL !== "" && lSQL !== "") {
+        sql = `
+          WITH i AS (${iSQL}),
+               l AS (${lSQL})
+          ${sql} JOIN i USING(ext_id) JOIN l USING(ext_id)
+      `;
+      } else if (iSQL) {
+        sql = `
+          WITH i AS (${iSQL})
+          ${sql} JOIN i USING(ext_id)
+        `;
+      } else {
+        sql = `
+          WITH l AS (${lSQL})
+          ${sql} JOIN l USING(ext_id)
+        `;       
+      }
+    }
+
+    if (wheres.length) {
+      sql = ` ${sql}
+        WHERE  ${wheres.join('\n AND ')}`;
+    }
     if (limit) sql = sql + `\n LIMIT ${limit}`;
     const rows = await helper.func.selectAsync(req.db, sql);
     res.json({accounts: rows, wheres});
