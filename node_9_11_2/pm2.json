@@ -12,9 +12,10 @@
           "PORT": 8080,
           "NODE_ENV": "production",
           "DEBUG": "accounts*",
-          "ALL": true
+          "ALL": true,
+          "DEBUG_HIDE_DATE": true
         },
-        "log_date_format"   : "YYYY-MM-DD HH:mm ss",
+        "log_date_format"   : "YYYY-MM-DDTHH:mm:ss.sssZ",
         "merge_logs"        : false,
         "watch"             : true,
         "exec_mode"         : "fork"
