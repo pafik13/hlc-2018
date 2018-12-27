@@ -93,13 +93,23 @@ function selectAsync (db, sql) {
   });
 }
 
-
 function updateAsync (db, sql, params) {
   const log = debug.extend('updateAsync');
   log(sql);
   log(params);
   return new Promise((resolve, reject) =>{
     db.run(sql, params, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+function analyzeAsync (db) {
+  // const log = debug.extend('analyzeAsync');
+  return new Promise((resolve, reject) =>{
+    db.exec("ANALYZE", (err) => {
+      // log(err);
       if (err) return reject(err);
       resolve();
     });
@@ -120,6 +130,7 @@ module.exports = exports = {
     FILTER_OPERATIONS,
     func: {
       selectAsync,
-      updateAsync
+      updateAsync,
+      analyzeAsync
     }
 };

@@ -90,6 +90,8 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/filter', async (req, res) => {
+    const log = debug.extend('filter');
+    
     const wheres = [];
     let iSQL = '';
     let lSQL = '';
@@ -169,7 +171,7 @@ function dbmiddle(req, res, next) {
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
-            console.log(`${field} : ${oper} : ${op} : ${val}`);
+            log(`${field} : ${oper} : ${op} : ${val}`);
             wheres.push(`${field} ${op} '${val}'`);
           }
           break;
@@ -180,7 +182,7 @@ function dbmiddle(req, res, next) {
     // console.log(wheres.join(" "));
     // email, country, id, status, birth
     let sql = `
-      SELECT *
+      SELECT email, country, id, status, birth
         FROM accounts`;
     if (iSQL || lSQL) {
       if (iSQL !== "" && lSQL !== "") {
@@ -208,7 +210,8 @@ function dbmiddle(req, res, next) {
     }
     if (limit) sql = sql + `\n LIMIT ${limit}`;
     const rows = await helper.func.selectAsync(req.db, sql);
-    res.json({accounts: rows, wheres});
+    // res.json({accounts: rows, wheres});
+    res.json({accounts: rows});
   });
 
   app.get('/accounts/group', async (req, res) => {
@@ -400,10 +403,13 @@ async function bootstrap() {
         }
         stmtAccInts.finalize();
         
-        DB.run("ANALYZE");
+        
+        // DB.exec("ANALYZE");
       });
     }
   });
+  await helper.func.analyzeAsync(DB);
+  // await helper.func.selectAsync()
   console.log(`Ended bootstrap...`);
   console.timeEnd('bootstrap');
 }
