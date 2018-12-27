@@ -90,7 +90,20 @@ function selectAsync (db, sql) {
       log(`${cnt} rows`);
       resolve(rows);
     });
-  })
+  });
+}
+
+
+function updateAsync (db, sql, params) {
+  const log = debug.extend('updateAsync');
+  log(sql);
+  log(params);
+  return new Promise((resolve, reject) =>{
+    db.run(sql, params, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 }
 
 module.exports = exports = {
@@ -106,6 +119,7 @@ module.exports = exports = {
     FILTERED_COMP_FIELDS,
     FILTER_OPERATIONS,
     func: {
-      selectAsync
+      selectAsync,
+      updateAsync
     }
 };

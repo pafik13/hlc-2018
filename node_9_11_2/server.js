@@ -1,6 +1,8 @@
 'use strict';
+const debug = require('debug')('accounts:server');
 
 const express = require('express');
+const bodyParser = require('body-parser');
 const AdmZip = require('adm-zip');
 const sqlite3 = require('sqlite3').verbose();
 const helper = require('./helper');
@@ -10,7 +12,8 @@ const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 const ALL = process.env.ALL || false;
 // const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
-const PATH = process.env.DATA_PATH || 'C:\\data.zip';
+// const PATH = process.env.DATA_PATH || 'C:\\data.zip';
+const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 const DB = new sqlite3.Database(':memory:');
 DB.on('error', console.error);
@@ -27,7 +30,9 @@ function dbmiddle(req, res, next) {
   const app = express();
   
   // Using it in an app for all routes (you can replace * with any route you want)
-  app.use('*', dbmiddle)
+  app.use('*', dbmiddle);
+
+  app.use(bodyParser.json());
 
   app.get('/', (req, res) => {
     res.send('Hello world\n');
@@ -137,7 +142,7 @@ function dbmiddle(req, res, next) {
                WHERE interest IN (${vals})
                GROUP BY acc_id
             `;
-            if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`
+            if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
             valArr = val.split(',');
@@ -157,9 +162,9 @@ function dbmiddle(req, res, next) {
           const oper = arr[1];
           if (oper === 'null') {
             if (Number(val)) { 
-              wheres.push(`${field} IS NULL`)
+              wheres.push(`${field} IS NULL`);
             } else { 
-              wheres.push(`${field} IS NOT NULL`)
+              wheres.push(`${field} IS NOT NULL`);
             }
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
             // const val = q[prop];
@@ -219,15 +224,96 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/new', async (req, res) => {
-    res.json(201, {});
+    const log = debug.extend('new');
+    log(req.body);
+    const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
+    const acc = req.body;
+    // console.log(acc);
+    if (acc.premium) {
+      stmtAcc.run([
+        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.birth, 1, acc.premium.start, acc.premium.finish
+      ]);
+    } else {
+      stmtAcc.run([
+        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.birth, null, null, null
+      ]);            
+    }
+    stmtAcc.finalize();
+    
+    const stmtAccLikes = DB.prepare(helper.SQL_INSERT_ACCOUNTS_LIKE);
+      // console.log(acc);
+    if (acc.likes) {
+      for (let j = 0, len = acc.likes.length; j < len; j++) {
+        const like = acc.likes[j];
+        stmtAccLikes.run([like.id, like.ts, acc.id]);
+      }
+    }
+    stmtAccLikes.finalize();
+
+    const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
+    // console.log(acc);
+    if (acc.interests) {
+      for (let j = 0, len = acc.interests.length; j < len; j++) {
+        const interest = acc.interests[j];
+        stmtAccInts.run([interest, acc.id]);
+      }
+    }
+    stmtAccInts.finalize();
+  
+    res.status(201).json({});
   });
 
   app.post('/accounts/likes', async (req, res) => {
-    res.json(202, {});
+    res.status(202).json({});
   });
 
   app.post('/accounts/:id', async (req, res) => {
-    res.json(202, {});
+    const log = debug.extend('upd');
+    log(req.params.id);
+    log(req.body);
+    
+    // let sql = `SELECT * FROM accounts WHERE id = ${req.params.id}`;
+    // const rows = await helper.func.selectAsync(req.db, sql);
+    // log(rows);
+    // if (!rows.length) return res.status(404).json({});
+    
+    
+    let sql = 'UPDATE accounts SET \n';
+    const fields = [];
+    const params = [];
+    const vals = req.body;
+    if (vals.premium) {
+      const premium = vals.premium;
+      fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
+      params.push(1, premium.start, premium.finish);
+      delete vals.premium;
+    }
+    for (let prop in vals) {
+      if (vals.hasOwnProperty(prop)) {
+        const val = vals[prop];
+        
+        
+        if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
+          fields.push(`${prop}  = ?`);
+          params.push(val);
+        }
+      }
+    }
+    params.push(req.params.id);
+    sql = sql + fields.join(',\n') + "\n WHERE id = ?";
+    
+    try {
+      await helper.func.updateAsync(req.db, sql, params);
+      return res.status(202).json({});
+    } catch(e) {
+      log(e);
+      return res.status(404).json({});
+    }
+    
   });
 
 
@@ -244,7 +330,7 @@ function dbmiddle(req, res, next) {
 async function bootstrap() {
   console.time('bootstrap');
   console.log(`Starting bootstrap...`);
-  console.log(`PATH=${PATH}`)
+  console.log(`PATH=${PATH}`);
   // await sleep(1000);
   DB.serialize(function() {
     DB.run(helper.SQL_CREATE_ACCOUNTS);
@@ -331,5 +417,5 @@ async function bootstrap() {
 function sleep(ms){
   return new Promise(resolve=>{
       setTimeout(resolve,ms);
-  })
+  });
 }

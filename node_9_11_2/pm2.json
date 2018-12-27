@@ -4,9 +4,10 @@
         "name": "accounts",
         "script": "server.js",
         "env": {
-          "PORT": 3003,
+          "PORT": 8080,
           "NODE_ENV": "dev",
-          "DEBUG": "accounts*"
+          "DEBUG": "accounts*",
+          "DEBUG_HIDE_DATE": true
         },
         "env_production": {
           "PORT": 8080,
