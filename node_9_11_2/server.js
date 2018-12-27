@@ -276,12 +276,6 @@ function dbmiddle(req, res, next) {
     log(req.params.id);
     log(req.body);
     
-    // let sql = `SELECT * FROM accounts WHERE id = ${req.params.id}`;
-    // const rows = await helper.func.selectAsync(req.db, sql);
-    // log(rows);
-    // if (!rows.length) return res.status(404).json({});
-    
-    
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
     const params = [];
