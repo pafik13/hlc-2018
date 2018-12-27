@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 const ALL = process.env.ALL || false;
 // const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
-const PATH = process.env.DATA_PATH || './data.zip';
+const PATH = process.env.DATA_PATH || 'C:\\data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 const DB = new sqlite3.Database(':memory:');
 DB.on('error', console.error);
@@ -219,19 +219,17 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/new', async (req, res) => {
-    res.status = 201;
-    res.json({});
-  });
-
-  app.post('/accounts/:id', async (req, res) => {
-    res.status = 202;
-    res.json({});
+    res.json(201, {});
   });
 
   app.post('/accounts/likes', async (req, res) => {
-    res.status = 202;
-    res.json({});
+    res.json(202, {});
   });
+
+  app.post('/accounts/:id', async (req, res) => {
+    res.json(202, {});
+  });
+
 
   try {
     await bootstrap();
@@ -248,6 +246,13 @@ async function bootstrap() {
   console.log(`Starting bootstrap...`);
   console.log(`PATH=${PATH}`)
   // await sleep(1000);
+  DB.serialize(function() {
+    DB.run(helper.SQL_CREATE_ACCOUNTS);
+    DB.run(helper.SQL_CREATE_ACCOUNTS_LIKE);
+    DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
+    DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
+  });
+
   const zip = new AdmZip(PATH);
   const entries = zip.getEntries();
   entries.forEach((i) => {
@@ -257,12 +262,7 @@ async function bootstrap() {
       // console.log(JSON.parse(i.getData().toString('utf8')));
       const data = JSON.parse(i.getData().toString('utf8'));
       console.log(Array.isArray(data.accounts));
-      DB.serialize(function() {
-        DB.run(helper.SQL_CREATE_ACCOUNTS);
-        DB.run(helper.SQL_CREATE_ACCOUNTS_LIKE);
-        DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
-        DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
-        
+      DB.serialize(function() {      
         const lenAccs = ALL ? data.accounts.length : 100;
         console.log(lenAccs);
         const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
