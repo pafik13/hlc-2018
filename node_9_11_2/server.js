@@ -418,7 +418,7 @@ async function bootstrap() {
     }
   });
 
-  await helper.func.analyzeAsync(DB);
+  // await helper.func.analyzeAsync(DB);
   // await helper.func.selectAsync()
   console.log(`Ended bootstrap...`);
   console.timeEnd('bootstrap');

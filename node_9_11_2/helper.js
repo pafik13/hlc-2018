@@ -145,6 +145,22 @@ function createIndexAsync (db, field, table = 'accounts') {
   });
 }
 
+// function processAccAsync (db, acc) {
+//   const log = debug.extend('processAccAsync');
+//   acc.id = acc.id || null;
+//   // const cmd = `CREATE INDEX ix_${field} ON ${table}(${field});`;
+//   log(cmd);
+//   return new Promise((resolve, reject) =>{
+//     db.exec(cmd, (err) => {
+//       // log(err);
+//       if (err) return reject(err);
+//       resolve();
+//     });
+//   });
+// }
+
+
+
 module.exports = exports = {
     SQL_CREATE_ACCOUNTS,
     SQL_INSERT_ACCOUNTS,
