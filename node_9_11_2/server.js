@@ -139,7 +139,7 @@ function dbmiddle(req, res, next) {
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
             iSQL = `
-              SELECT acc_id AS ext_id
+              SELECT acc_id AS id
                 FROM accounts_interest 
                WHERE interest IN (${vals})
                GROUP BY acc_id
@@ -151,7 +151,7 @@ function dbmiddle(req, res, next) {
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
             lSQL = `
-              SELECT acc_id AS ext_id
+              SELECT acc_id AS id
                 FROM accounts_like 
                WHERE like_id IN (${vals})
                GROUP BY acc_id
@@ -189,17 +189,17 @@ function dbmiddle(req, res, next) {
         sql = `
           WITH i AS (${iSQL}),
                l AS (${lSQL})
-          ${sql} JOIN i USING(ext_id) JOIN l USING(ext_id)
+          ${sql} JOIN i USING(id) JOIN l USING(id)
       `;
       } else if (iSQL) {
         sql = `
           WITH i AS (${iSQL})
-          ${sql} JOIN i USING(ext_id)
+          ${sql} JOIN i USING(id)
         `;
       } else {
         sql = `
           WITH l AS (${lSQL})
-          ${sql} JOIN l USING(ext_id)
+          ${sql} JOIN l USING(id)
         `;       
       }
     }
@@ -332,9 +332,20 @@ async function bootstrap() {
   DB.serialize(function() {
     DB.run(helper.SQL_CREATE_ACCOUNTS);
     DB.run(helper.SQL_CREATE_ACCOUNTS_LIKE);
-    DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
+    // DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
     DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
   });
+  
+  await helper.func.createIndexAsync(DB, 'birth');
+  await helper.func.createIndexAsync(DB, 'city');
+  await helper.func.createIndexAsync(DB, 'country');
+  await helper.func.createIndexAsync(DB, 'premium');
+
+  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_CITY);
+  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_COUNTRY);
+  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_PREMIUM);
+  await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_LIKES);
+  await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_INTERESTS);
 
   const zip = new AdmZip(PATH);
   const entries = zip.getEntries();
@@ -381,15 +392,6 @@ async function bootstrap() {
         }
         stmtAccLikes.finalize();
 
-        const stmtAccPrem = DB.prepare(helper.SQL_INSERT_ACCOUNTS_PREMIUM);
-        for (let i = 0; i < lenAccs; i++) {
-          const acc = data.accounts[i];
-          const premium = acc.premium;
-          // console.log(acc);
-          if (premium) stmtAccPrem.run([premium.start, premium.finish, acc.id]);
-        }
-        stmtAccPrem.finalize();
-
         const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
@@ -408,6 +410,7 @@ async function bootstrap() {
       });
     }
   });
+
   await helper.func.analyzeAsync(DB);
   // await helper.func.selectAsync()
   console.log(`Ended bootstrap...`);
