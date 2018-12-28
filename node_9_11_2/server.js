@@ -209,7 +209,12 @@ function dbmiddle(req, res, next) {
         WHERE  ${wheres.join('\n AND ')}`;
     }
     if (limit) sql = sql + `\n LIMIT ${limit}`;
-    const rows = await helper.func.selectAsync(req.db, sql);
+    let rows = [];
+    try {
+      rows = await helper.func.selectAsync(req.db, sql);
+    } catch(e) {
+      console.log(`FILTER_ERROR: ${q.query_id}`);
+    }
     // res.json({accounts: rows, wheres});
     res.json({accounts: rows});
   });
