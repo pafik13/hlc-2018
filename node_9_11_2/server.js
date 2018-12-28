@@ -232,6 +232,7 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/new', async (req, res) => {
+    return res.status(201).json({});
     const log = debug.extend('new');
     log(req.body);
     const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
@@ -280,6 +281,7 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/:id', async (req, res) => {
+    return res.status(202).json({});
     const log = debug.extend('upd');
     log(req.params.id);
     log(req.body);
