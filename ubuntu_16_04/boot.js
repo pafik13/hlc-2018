@@ -21,6 +21,13 @@ const mysql = new database.mysql({
       mysqlReplication: true
     },
 });
+
+const logInsertEnd = debug.extend('insertEnd');
+function insertEnd() {
+  global.gc();
+  logInsertEnd(`memory (MB): ${process.memoryUsage().rss / 1048576}`);
+}
+
 (async () => {
 
     const log = debug.extend('main');
@@ -31,6 +38,10 @@ const mysql = new database.mysql({
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
+        await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+        await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
     } catch (error) {
         log(error);
     }
@@ -40,6 +51,8 @@ const mysql = new database.mysql({
     console.time('inserts');
     const inserts = [];
     for(let e = 0, len = entries.length; e < len; e++) {
+      log(`iteration: ${e}`);
+      log(`memory (MB): ${process.memoryUsage().rss / 1048576}`);
       let i = entries[e];
       if (RE_FILENAME.test(i.entryName)) {
         log(i.entryName);
@@ -91,40 +104,44 @@ const mysql = new database.mysql({
             // }
           }
         }
-      
-        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]));
-        inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]));
-        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]));
 
+        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]).then(insertEnd));
+        inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]).then(insertEnd));
+        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]).then(insertEnd)); 
+
+        await sleep(2000);
       }
+      // global.gc();
     }
+
     Promise.all(inserts).then(async () => {
       console.timeEnd('inserts');
       
-      console.time('references');
-      try {
-          await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
-          await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-      } catch (error) {
-          log(error);
-      }
-      console.timeEnd('references');
+      // console.time('references');
+      // try {
+          // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+          // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+      //     null;
+      // } catch (error) {
+      //     log(error);
+      // }
+      // console.timeEnd('references');
       
-      console.time('indeces');
-      try {
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
-      } catch (error) {
-          log(error);
-      }
-      console.timeEnd('indeces');
+      // console.time('indeces');
+      // try {
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
+          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
+      // } catch (error) {
+          // log(error);
+      // }
+      // console.timeEnd('indeces');
       
       console.time('analyze');
       try {
