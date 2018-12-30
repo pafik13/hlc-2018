@@ -110,6 +110,22 @@ const mysql = new database.mysql({
       }
       console.timeEnd('references');
       
+      console.time('indeces');
+      try {
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
+      } catch (error) {
+          log(error);
+      }
+      console.timeEnd('indeces');
+      
       console.time('analyze');
       try {
           await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);

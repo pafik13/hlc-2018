@@ -115,12 +115,12 @@ function dbmiddle(req, res, next) {
             wheres.push(`city IN (${vals})`);
             break;
           case 'birth_year':
-            wheres.push(`birth BETWEEN strftime('%s', date('${val}-01-01')) 
-              AND strftime('%s', datetime('${Number(val) + 1}-01-01')) - 1
+            wheres.push(`birth BETWEEN UNIX_TIMESTAMP(date '${val}-01-01') 
+              AND UNIX_TIMESTAMP(date '${Number(val) + 1}-01-01') - 1
             `);
             break;  
           case 'premium_now':
-            wheres.push(`strftime('%s', 'now') between pstart and pfinish`);
+            wheres.push(`UNIX_TIMESTAMP() between pstart and pfinish`);
             break;
           case 'interests_any':
           case 'interests_contains':
@@ -176,19 +176,15 @@ function dbmiddle(req, res, next) {
     if (iSQL || lSQL) {
       if (iSQL !== "" && lSQL !== "") {
         sql = `
-          WITH i AS (${iSQL}),
-               l AS (${lSQL})
-          ${sql} JOIN i USING(id) JOIN l USING(id)
+          ${sql} JOIN (${iSQL}) i USING(id) JOIN (${lSQL}) l USING(id)
       `;
       } else if (iSQL) {
         sql = `
-          WITH i AS (${iSQL})
-          ${sql} JOIN i USING(id)
+          ${sql} JOIN (${iSQL}) i USING(id)
         `;
       } else {
         sql = `
-          WITH l AS (${lSQL})
-          ${sql} JOIN l USING(id)
+          ${sql} JOIN (${lSQL}) l USING(id)
         `;       
       }
     }

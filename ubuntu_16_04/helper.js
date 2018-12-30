@@ -3,10 +3,10 @@ const debug = require('debug')('accounts:helper');
 const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
   ( id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , email text, fname text
-  , sname text, status text
-  , country text, city text
-  , phone text, sex text
+  , email varchar(100), fname varchar(50)
+  , sname varchar(50), status text
+  , country varchar(50), city varchar(50)
+  , phone varchar(16), sex text
   , joined integer, birth integer
   , premium integer
   , pstart integer, pfinish integer
@@ -18,6 +18,18 @@ const SQL_INSERT_ACCOUNTS =
     , country, city, phone, sex, joined 
     , birth, premium, pstart, pfinish)
    VALUES ?`;
+
+const SQL_CREATE_INDEX_JOINED = `CREATE INDEX ix_joined
+  ON accounts(joined);`;
+
+const SQL_CREATE_INDEX_PSTART = `CREATE INDEX ix_pstart
+  ON accounts(pstart);`;
+
+const SQL_CREATE_INDEX_PFINISH = `CREATE INDEX ix_pfinish 
+  ON accounts(pfinish);`;
+
+const SQL_CREATE_INDEX_BIRTH = `CREATE INDEX ix_birth 
+  ON accounts(birth);`;
 
 const SQL_CREATE_INDEX_PREMIUM = `CREATE INDEX ix_premium 
   ON accounts(premium);`;
@@ -48,7 +60,7 @@ const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes
 const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , interest text
+  , interest varchar(100)
   , acc_id integer
   )`;
 
@@ -178,6 +190,10 @@ module.exports = exports = {
     SQL_CREATE_INDEX_PREMIUM,
     SQL_CREATE_INDEX_COUNTRY,
     SQL_CREATE_INDEX_CITY,
+    SQL_CREATE_INDEX_JOINED,
+    SQL_CREATE_INDEX_PSTART,
+    SQL_CREATE_INDEX_PFINISH,
+    SQL_CREATE_INDEX_BIRTH,
     SQL_CREATE_ACCOUNTS_LIKE,
     SQL_INSERT_ACCOUNTS_LIKE,
     SQL_CREATE_INDEX_LIKES,
