@@ -11,6 +11,8 @@ const config = require('./config');
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
+let CURRENT_ID = 0;
+
 
 const mysql = new database.mysql({
      mysql: {
@@ -246,23 +248,26 @@ function dbmiddle(req, res, next) {
     log(req.body);
     // const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
     const acc = req.body;
+    let rows = [];
     if (acc.email) {
-      const rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = ${acc.email}`);
+      rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
       if (rows.length) return res.status(400).json({});
     }
 
     let params = [];
     const likes = [];
     const interests = [];
+    ++CURRENT_ID;
+    acc.id = CURRENT_ID;
     if (acc.premium) {
       params = [
-        acc.email, acc.fname, acc.sname, acc.status, 
+        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
         acc.country, acc.city, acc.phone, acc.sex, acc.joined,
         acc.birth, 1, acc.premium.start, acc.premium.finish
       ];
     } else {
       params = [
-        acc.email, acc.fname, acc.sname, acc.status, 
+        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
         acc.country, acc.city, acc.phone, acc.sex, acc.joined,
         acc.birth, null, null, null
       ];            
@@ -280,7 +285,7 @@ function dbmiddle(req, res, next) {
     try {
       await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
       await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
-      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
       return res.status(201).json({});
     } catch(err) {
       console.error(err);
@@ -382,6 +387,8 @@ function dbmiddle(req, res, next) {
 })();
 
 async function bootstrap() {
+  const rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  CURRENT_ID = rows[0].max_id;
   return;
 }
 

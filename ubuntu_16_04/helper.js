@@ -21,11 +21,11 @@ const SQL_INSERT_ACCOUNTS =
 
 const SQL_INSERT_ACCOUNT =
    `INSERT INTO accounts
-     ( email, fname, sname, status
+     ( id, email, fname, sname, status
      , country, city, phone, sex, joined 
      , birth, premium, pstart, pfinish)
     VALUES
-     ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`;
+     ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );`;
 
 const SQL_CREATE_INDEX_JOINED = `CREATE INDEX ix_joined
   ON accounts(joined);`;
