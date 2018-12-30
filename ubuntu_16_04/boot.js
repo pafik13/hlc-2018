@@ -5,6 +5,7 @@ const AdmZip = require('adm-zip');
 
 const database = require('./mysql');
 const helper = require('./helper');
+const config = require('./config');
 
 const ALL = Boolean(process.env.ALL) || false;
 // const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
@@ -12,35 +13,11 @@ const ALL = Boolean(process.env.ALL) || false;
 const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 
-const C_USER = process.env.MYSQL_USER || 'pafik13';
-const C_PASS = process.env.MYSQL_PASS || '';
-const C_DB = process.env.MYSQL_DB || 'acc';
 
 const mysql = new database.mysql({
      mysql: {
-        master: {
-            host: '127.0.0.1',
-            user: C_USER,
-            password: C_PASS,
-            database: C_DB,
-            charset: 'utf8mb4'
-        },
-        replicas: [
-          {
-            host: '127.0.0.1',
-            user: C_USER,
-            password: C_PASS,
-            database: C_DB,
-            charset: 'utf8mb4'
-          },
-          {
-            host: '127.0.0.1',
-            user: C_USER,
-            password: C_PASS,
-            database: C_DB,
-            charset: 'utf8mb4'
-          }
-        ],
+        master: config.mysqlConn,
+        replicas: [config.mysqlConn, config.mysqlConn],
       mysqlReplication: true
     },
 });
@@ -71,7 +48,7 @@ const mysql = new database.mysql({
         const data = JSON.parse(i.getData().toString('utf8'));
         log(Array.isArray(data.accounts));
             
-        const lenAccs = ALL ? data.accounts.length : 10000;
+        const lenAccs = ALL ? data.accounts.length : 100;
         log(lenAccs);
         const accounts = [];
         const likes = [];
@@ -132,6 +109,16 @@ const mysql = new database.mysql({
           log(error);
       }
       console.timeEnd('references');
+      
+      console.time('analyze');
+      try {
+          await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
+          await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
+          await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
+      } catch (error) {
+          log(error);
+      }
+      console.timeEnd('analyze');
       
       console.timeEnd('bootstrap');
       log(`Bootstrap is ended...`);

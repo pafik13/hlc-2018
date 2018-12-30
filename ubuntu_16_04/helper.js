@@ -69,6 +69,11 @@ const SQL_ADD_REF_KEY_INTEREST= ` ALTER TABLE accounts_interest
 const SQL_ADD_REF_KEY_LIKE= ` ALTER TABLE accounts_like
   ADD CONSTRAINT fk_al$acc_id FOREIGN KEY (acc_id) REFERENCES accounts(id);`;
 
+const SQL_ANALYZE_ACCOUNTS = 'ANALYZE TABLE accounts';
+const SQL_ANALYZE_INTEREST = 'ANALYZE TABLE accounts_interest';
+const SQL_ANALYZE_LIKE     = 'ANALYZE TABLE accounts_like';
+
+
 const FILTERED_SIMPLE_FIELDS = [
   'sex', 'email', 'status',
   'fname', 'sname', 'phone',
@@ -181,6 +186,9 @@ module.exports = exports = {
     SQL_CREATE_INDEX_INTERESTS,
     SQL_ADD_REF_KEY_INTEREST,
     SQL_ADD_REF_KEY_LIKE,
+    SQL_ANALYZE_ACCOUNTS,
+    SQL_ANALYZE_INTEREST,
+    SQL_ANALYZE_LIKE,
     FILTERED_SIMPLE_FIELDS,
     FILTERED_COMP_FIELDS,
     FILTER_OPERATIONS,

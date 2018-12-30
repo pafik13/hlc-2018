@@ -3,24 +3,26 @@ const debug = require('debug')('accounts:server');
 
 const express = require('express');
 const bodyParser = require('body-parser');
-const AdmZip = require('adm-zip');
-const sqlite3 = require('sqlite3').verbose();
+
+const database = require('./mysql');
 const helper = require('./helper');
+const config = require('./config');
 
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
-const ALL = process.env.ALL || false;
-// const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
-// const PATH = process.env.DATA_PATH || 'C:\\data.zip';
-const PATH = process.env.DATA_PATH || './data.zip';
-const RE_FILENAME = new RegExp('account(.)+json');
-const DB = new sqlite3.Database(':memory:');
-DB.on('error', console.error);
+
+const mysql = new database.mysql({
+     mysql: {
+        master: config.mysqlConn,
+        replicas: [config.mysqlConn, config.mysqlConn],
+      mysqlReplication: true
+    },
+});
 
 // Defining middleware
 function dbmiddle(req, res, next) {
-  req.db = DB;
+  req.db = mysql;
   next();
 }
 
@@ -30,6 +32,7 @@ function dbmiddle(req, res, next) {
   const app = express();
   
   // Using it in an app for all routes (you can replace * with any route you want)
+  await mysql.connect();
   app.use('*', dbmiddle);
 
   app.use(bodyParser.json());
@@ -40,21 +43,7 @@ function dbmiddle(req, res, next) {
 
   app.get('/premium', async (req, res) => {
     const sql = "SELECT * FROM accounts_premium LIMIT 3";
-    const rows = await helper.func.selectAsync(req.db, sql);
-    // const rows = [];
-    // req.db.each("SELECT * FROM accounts_premium LIMIT 3", (err, row) => {
-    //   if (err) {
-    //     res.json({err});
-    //   } else {
-    //     rows.push(row);
-    //   }
-    // }, (err, cnt) => {
-    //   if (err) {
-    //     res.json({err});
-    //   } else {
-    //     res.json(rows);
-    //   }
-    // });
+    const rows = await req.db.queryToMaster(sql);
     res.json(rows);
   });
 
@@ -67,7 +56,7 @@ function dbmiddle(req, res, next) {
         FROM accounts_premium ap
        WHERE strftime('%s', 'now') between ap.start and ap.finish
     `;
-    const rows = await helper.func.selectAsync(req.db, sql);
+    const rows = await req.db.queryToMaster(sql);
     res.json(rows);
   });
 
@@ -85,7 +74,7 @@ function dbmiddle(req, res, next) {
       SELECT * FROM agg`;
     }
 
-    const rows = await helper.func.selectAsync(req.db, sql);
+    const rows = await req.db.queryToMaster(sql);
     res.json(rows);
   });
 
@@ -211,9 +200,11 @@ function dbmiddle(req, res, next) {
     if (limit) sql = sql + `\n LIMIT ${limit}`;
     let rows = [];
     try {
-      rows = await helper.func.selectAsync(req.db, sql);
+      log(sql);
+      rows = await req.db.queryToMaster(sql);
     } catch(e) {
       console.log(`FILTER_ERROR: ${q.query_id}`);
+      console.error(e);
     }
     // res.json({accounts: rows, wheres});
     res.json({accounts: rows});
@@ -233,45 +224,45 @@ function dbmiddle(req, res, next) {
 
   app.post('/accounts/new', async (req, res) => {
     return res.status(201).json({});
-    const log = debug.extend('new');
-    log(req.body);
-    const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
-    const acc = req.body;
-    // console.log(acc);
-    if (acc.premium) {
-      stmtAcc.run([
-        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-        acc.birth, 1, acc.premium.start, acc.premium.finish
-      ]);
-    } else {
-      stmtAcc.run([
-        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-        acc.birth, null, null, null
-      ]);            
-    }
-    stmtAcc.finalize();
+    // const log = debug.extend('new');
+    // log(req.body);
+    // const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
+    // const acc = req.body;
+    // // console.log(acc);
+    // if (acc.premium) {
+    //   stmtAcc.run([
+    //     acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+    //     acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+    //     acc.birth, 1, acc.premium.start, acc.premium.finish
+    //   ]);
+    // } else {
+    //   stmtAcc.run([
+    //     acc.id, acc.email, acc.fname, acc.sname, acc.status, 
+    //     acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+    //     acc.birth, null, null, null
+    //   ]);            
+    // }
+    // stmtAcc.finalize();
     
-    const stmtAccLikes = DB.prepare(helper.SQL_INSERT_ACCOUNTS_LIKE);
-      // console.log(acc);
-    if (acc.likes) {
-      for (let j = 0, len = acc.likes.length; j < len; j++) {
-        const like = acc.likes[j];
-        stmtAccLikes.run([like.id, like.ts, acc.id]);
-      }
-    }
-    stmtAccLikes.finalize();
+    // const stmtAccLikes = DB.prepare(helper.SQL_INSERT_ACCOUNTS_LIKE);
+    //   // console.log(acc);
+    // if (acc.likes) {
+    //   for (let j = 0, len = acc.likes.length; j < len; j++) {
+    //     const like = acc.likes[j];
+    //     stmtAccLikes.run([like.id, like.ts, acc.id]);
+    //   }
+    // }
+    // stmtAccLikes.finalize();
 
-    const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
-    // console.log(acc);
-    if (acc.interests) {
-      for (let j = 0, len = acc.interests.length; j < len; j++) {
-        const interest = acc.interests[j];
-        stmtAccInts.run([interest, acc.id]);
-      }
-    }
-    stmtAccInts.finalize();
+    // const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
+    // // console.log(acc);
+    // if (acc.interests) {
+    //   for (let j = 0, len = acc.interests.length; j < len; j++) {
+    //     const interest = acc.interests[j];
+    //     stmtAccInts.run([interest, acc.id]);
+    //   }
+    // }
+    // stmtAccInts.finalize();
   
     res.status(201).json({});
   });
@@ -282,41 +273,41 @@ function dbmiddle(req, res, next) {
 
   app.post('/accounts/:id', async (req, res) => {
     return res.status(202).json({});
-    const log = debug.extend('upd');
-    log(req.params.id);
-    log(req.body);
+    // const log = debug.extend('upd');
+    // log(req.params.id);
+    // log(req.body);
     
-    let sql = 'UPDATE accounts SET \n';
-    const fields = [];
-    const params = [];
-    const vals = req.body;
-    if (vals.premium) {
-      const premium = vals.premium;
-      fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
-      params.push(1, premium.start, premium.finish);
-      delete vals.premium;
-    }
-    for (let prop in vals) {
-      if (vals.hasOwnProperty(prop)) {
-        const val = vals[prop];
+    // let sql = 'UPDATE accounts SET \n';
+    // const fields = [];
+    // const params = [];
+    // const vals = req.body;
+    // if (vals.premium) {
+    //   const premium = vals.premium;
+    //   fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
+    //   params.push(1, premium.start, premium.finish);
+    //   delete vals.premium;
+    // }
+    // for (let prop in vals) {
+    //   if (vals.hasOwnProperty(prop)) {
+    //     const val = vals[prop];
         
         
-        if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
-          fields.push(`${prop}  = ?`);
-          params.push(val);
-        }
-      }
-    }
-    params.push(req.params.id);
-    sql = sql + fields.join(',\n') + "\n WHERE id = ?";
+    //     if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
+    //       fields.push(`${prop}  = ?`);
+    //       params.push(val);
+    //     }
+    //   }
+    // }
+    // params.push(req.params.id);
+    // sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     
-    try {
-      await helper.func.updateAsync(req.db, sql, params);
-      return res.status(202).json({});
-    } catch(e) {
-      log(e);
-      return res.status(404).json({});
-    }
+    // try {
+    //   await helper.func.updateAsync(req.db, sql, params);
+    //   return res.status(202).json({});
+    // } catch(e) {
+    //   log(e);
+    //   return res.status(404).json({});
+    // }
     
   });
 
@@ -332,97 +323,7 @@ function dbmiddle(req, res, next) {
 })();
 
 async function bootstrap() {
-  console.time('bootstrap');
-  console.log(`Starting bootstrap...`);
-  console.log(`PATH=${PATH}`);
   return;
-  // await sleep(1000);
-  DB.serialize(function() {
-    DB.run(helper.SQL_CREATE_ACCOUNTS);
-    DB.run(helper.SQL_CREATE_ACCOUNTS_LIKE);
-    // DB.run(helper.SQL_CREATE_ACCOUNTS_PREMIUM);
-    DB.run(helper.SQL_CREATE_ACCOUNTS_INTEREST);
-  });
-  
-  await helper.func.createIndexAsync(DB, 'birth');
-  await helper.func.createIndexAsync(DB, 'city');
-  await helper.func.createIndexAsync(DB, 'country');
-  await helper.func.createIndexAsync(DB, 'premium');
-
-  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_CITY);
-  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_COUNTRY);
-  // await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_PREMIUM);
-  await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_LIKES);
-  await helper.func.execAsync(DB, helper.SQL_CREATE_INDEX_INTERESTS);
-
-  const zip = new AdmZip(PATH);
-  const entries = zip.getEntries();
-  entries.forEach((i) => {
-    if (RE_FILENAME.test(i.entryName)) {
-      console.log(i.entryName);
-      // console.log(i.getData().toString('utf8'));
-      // console.log(JSON.parse(i.getData().toString('utf8')));
-      const data = JSON.parse(i.getData().toString('utf8'));
-      console.log(Array.isArray(data.accounts));
-      DB.serialize(function() {      
-        const lenAccs = ALL ? data.accounts.length : 100;
-        console.log(lenAccs);
-        const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
-        for (let i = 0; i < lenAccs; i++) {
-          const acc = data.accounts[i];
-          // console.log(acc);
-          if (acc.premium) {
-            stmtAcc.run([
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-              acc.birth, 1, acc.premium.start, acc.premium.finish
-            ]);
-          } else {
-            stmtAcc.run([
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-              acc.birth, null, null, null
-            ]);            
-          }
-        }
-        stmtAcc.finalize();
-      
-        const stmtAccLikes = DB.prepare(helper.SQL_INSERT_ACCOUNTS_LIKE);
-        for (let i = 0; i < lenAccs; i++) {
-          const acc = data.accounts[i];
-          // console.log(acc);
-          if (acc.likes) {
-            for (let j = 0, len = acc.likes.length; j < len; j++) {
-              const like = acc.likes[j];
-              stmtAccLikes.run([like.id, like.ts, acc.id]);
-            }
-          }
-        }
-        stmtAccLikes.finalize();
-
-        const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
-        for (let i = 0; i < lenAccs; i++) {
-          const acc = data.accounts[i];
-          // console.log(acc);
-          if (acc.interests) {
-            for (let j = 0, len = acc.interests.length; j < len; j++) {
-              const interest = acc.interests[j];
-              stmtAccInts.run([interest, acc.id]);
-            }
-          }
-        }
-        stmtAccInts.finalize();
-        
-        
-        // DB.exec("ANALYZE");
-      });
-    }
-  });
-
-  // await helper.func.analyzeAsync(DB);
-  // await helper.func.selectAsync()
-  console.log(`Ended bootstrap...`);
-  console.timeEnd('bootstrap');
 }
 
 function sleep(ms){
