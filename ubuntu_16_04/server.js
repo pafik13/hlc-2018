@@ -81,6 +81,7 @@ function dbmiddle(req, res, next) {
   app.get('/accounts/filter', async (req, res) => {
     const log = debug.extend('filter');
     
+    const fields = [];
     const wheres = [];
     let iSQL = '';
     let lSQL = '';
@@ -94,27 +95,36 @@ function dbmiddle(req, res, next) {
         const val = q[prop];
         let vals = '';
         switch (prop) {
+          case 'query_id':
+            break;
           case 'limit':
-            limit = val;
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
             break;
           case 'email_domain':
+            fields.push('email');
             wheres.push(`email LIKE '%@${val}'`);
             break;
           case 'fname_any':
+            fields.push('fname');
             vals = val.split(',').map(i => `'${i}'`).join(',');
             wheres.push(`fname IN (${vals})`);
             break;
           case 'sname_starts':
+            fields.push('sname');
             wheres.push(`sname LIKE '${val}%'`);
             break;
           case 'phone_code':
+            fields.push('phone');
             wheres.push(`phone LIKE '8(${val})%'`);
             break;
           case 'city_any':
+            fields.push('city');
             vals = val.split(',').map(i => `'${i}'`).join(',');
             wheres.push(`city IN (${vals})`);
             break;
           case 'birth_year':
+            fields.push('birth');
             wheres.push(`birth BETWEEN UNIX_TIMESTAMP(date '${val}-01-01') 
               AND UNIX_TIMESTAMP(date '${Number(val) + 1}-01-01') - 1
             `);
@@ -160,8 +170,12 @@ function dbmiddle(req, res, next) {
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
+            if (!op) return res.status(400).json([]);
             log(`${field} : ${oper} : ${op} : ${val}`);
+            fields.push(field);
             wheres.push(`${field} ${op} '${val}'`);
+          } else {
+            return res.status(400).json([]);
           }
           break;
         }
@@ -170,8 +184,13 @@ function dbmiddle(req, res, next) {
     // res.json(wheres);
     // console.log(wheres.join(" "));
     // email, country, id, status, birth
+    let unique = [...new Set(fields)];
+    if (!unique.includes('email')) {
+      unique.push('email');
+    }
+    unique.push(id);
     let sql = `
-      SELECT email, country, id, status, birth
+      SELECT ${unique.join(',')}
         FROM accounts`;
     if (iSQL || lSQL) {
       if (iSQL !== "" && lSQL !== "") {
