@@ -53,7 +53,7 @@ RUN npm install
 COPY *.js ./
 
 # Start MySQL
-ENTRYPOINT find /var/lib/mysql -type f -exec touch {} \; && service mysql start && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8mb4;" && node boot.js && npm start
+ENTRYPOINT find /var/lib/mysql -type f -exec touch {} \; && service mysql start && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" && node boot.js && npm start
 
 EXPOSE 80
 # CMD [ "npm", "start" ]
