@@ -17,8 +17,7 @@ const SQL_INSERT_ACCOUNTS =
     ( id, email, fname, sname, status
     , country, city, phone, sex, joined 
     , birth, premium, pstart, pfinish)
-   VALUES
-    ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`;
+   VALUES ?`;
 
 const SQL_CREATE_INDEX_PREMIUM = `CREATE INDEX ix_premium 
   ON accounts(premium);`;
@@ -35,12 +34,12 @@ const SQL_CREATE_ACCOUNTS_LIKE =
   , like_id integer
   , like_ts integer
   , acc_id integer
-  , FOREIGN KEY(acc_id) REFERENCES accounts(id))`;
+  )`;
 
 const SQL_INSERT_ACCOUNTS_LIKE =
   `INSERT INTO accounts_like
     ( like_id, like_ts, acc_id)
-   VALUES ( ?, ?, ? )`;
+   VALUES ?`;
    
 
 const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes 
@@ -51,17 +50,24 @@ const SQL_CREATE_ACCOUNTS_INTEREST =
   ( id INTEGER PRIMARY KEY AUTO_INCREMENT
   , interest text
   , acc_id integer
-  , FOREIGN KEY(acc_id) REFERENCES accounts(id))`;
+  )`;
 
 
 const SQL_INSERT_ACCOUNTS_INTEREST =
 `INSERT INTO accounts_interest
   ( interest, acc_id)
- VALUES ( ?, ? )`;
+VALUES ?`;
 
 
 const SQL_CREATE_INDEX_INTERESTS = `CREATE INDEX ix_interests 
   ON accounts_interest(interest, acc_id);`;
+
+
+const SQL_ADD_REF_KEY_INTEREST= ` ALTER TABLE accounts_interest 
+  ADD CONSTRAINT fk_ai$acc_id FOREIGN KEY (acc_id) REFERENCES accounts(id);`;
+
+const SQL_ADD_REF_KEY_LIKE= ` ALTER TABLE accounts_like
+  ADD CONSTRAINT fk_al$acc_id FOREIGN KEY (acc_id) REFERENCES accounts(id);`;
 
 const FILTERED_SIMPLE_FIELDS = [
   'sex', 'email', 'status',
@@ -173,6 +179,8 @@ module.exports = exports = {
     SQL_CREATE_ACCOUNTS_INTEREST,
     SQL_INSERT_ACCOUNTS_INTEREST,
     SQL_CREATE_INDEX_INTERESTS,
+    SQL_ADD_REF_KEY_INTEREST,
+    SQL_ADD_REF_KEY_LIKE,
     FILTERED_SIMPLE_FIELDS,
     FILTERED_COMP_FIELDS,
     FILTER_OPERATIONS,
