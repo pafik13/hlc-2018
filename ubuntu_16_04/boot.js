@@ -43,7 +43,10 @@ const mysql = new database.mysql({
     }
     const zip = new AdmZip(PATH);
     const entries = zip.getEntries();
+    log(`entries.length = ${entries.length}`);
+    let itemsProcessed = 0;
     entries.forEach(async (i) => {
+      ++itemsProcessed;
       if (RE_FILENAME.test(i.entryName)) {
         log(i.entryName);
         // console.log(i.getData().toString('utf8'));
@@ -83,6 +86,8 @@ const mysql = new database.mysql({
             }
         }
 
+        // await sleep(1000);
+
         for (let i = 0; i < lenAccs; i++) {
             const acc = data.accounts[i];
             // console.log(acc);
@@ -94,12 +99,19 @@ const mysql = new database.mysql({
             }
         }
       }
-    });
-  
-    // await helper.func.analyzeAsync(DB);
-    // await helper.func.selectAsync()
-    console.log(`Ended bootstrap...`);
-    console.timeEnd('bootstrap');
 
+      if (itemsProcessed === entries.length) {
+        // await helper.func.analyzeAsync(DB);
+        // await helper.func.selectAsync()
+        console.log(`Ended bootstrap...`);
+        console.timeEnd('bootstrap');
+      }
+    });
     // process.exit();
 })();
+
+function sleep(ms){
+    return new Promise(resolve=>{
+        setTimeout(resolve,ms);
+    });
+  }
