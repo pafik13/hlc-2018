@@ -241,11 +241,52 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/new', async (req, res) => {
-    return res.status(201).json({});
-    // const log = debug.extend('new');
-    // log(req.body);
+    // return res.status(201).json({});
+    const log = debug.extend('new');
+    log(req.body);
     // const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
-    // const acc = req.body;
+    const acc = req.body;
+    if (acc.email) {
+      const rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = ${acc.email}`);
+      if (rows.length) return res.status(400).json({});
+    }
+
+    let params = [];
+    const likes = [];
+    const interests = [];
+    if (acc.premium) {
+      params = [
+        acc.email, acc.fname, acc.sname, acc.status, 
+        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.birth, 1, acc.premium.start, acc.premium.finish
+      ];
+    } else {
+      params = [
+        acc.email, acc.fname, acc.sname, acc.status, 
+        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.birth, null, null, null
+      ];            
+    }
+    await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+    
+    if (acc.interests) {
+      acc.interests.forEach((interest) => interests.push([interest, acc.id]));
+    }
+    
+    if (acc.likes) {
+      acc.likes.map((like) => likes.push([like.id, like.ts, acc.id]));
+    }
+
+    try {
+      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+      await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      return res.status(201).json({});
+    } catch(err) {
+      console.error(err);
+      return res.status(400).json({});
+    }
+
     // // console.log(acc);
     // if (acc.premium) {
     //   stmtAcc.run([
@@ -282,7 +323,7 @@ function dbmiddle(req, res, next) {
     // }
     // stmtAccInts.finalize();
   
-    res.status(201).json({});
+    
   });
 
   app.post('/accounts/likes', async (req, res) => {

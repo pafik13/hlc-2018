@@ -19,6 +19,14 @@ const SQL_INSERT_ACCOUNTS =
     , birth, premium, pstart, pfinish)
    VALUES ?`;
 
+const SQL_INSERT_ACCOUNT =
+   `INSERT INTO accounts
+     ( email, fname, sname, status
+     , country, city, phone, sex, joined 
+     , birth, premium, pstart, pfinish)
+    VALUES
+     ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )`;
+
 const SQL_CREATE_INDEX_JOINED = `CREATE INDEX ix_joined
   ON accounts(joined);`;
 
@@ -187,6 +195,7 @@ function createIndexAsync (db, field, table = 'accounts') {
 module.exports = exports = {
     SQL_CREATE_ACCOUNTS,
     SQL_INSERT_ACCOUNTS,
+    SQL_INSERT_ACCOUNT,
     SQL_CREATE_INDEX_PREMIUM,
     SQL_CREATE_INDEX_COUNTRY,
     SQL_CREATE_INDEX_CITY,
