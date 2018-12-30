@@ -188,7 +188,7 @@ function dbmiddle(req, res, next) {
     if (!unique.includes('email')) {
       unique.push('email');
     }
-    unique.push(id);
+    unique.push('id');
     let sql = `
       SELECT ${unique.join(',')}
         FROM accounts`;
@@ -212,6 +212,9 @@ function dbmiddle(req, res, next) {
       sql = ` ${sql}
         WHERE  ${wheres.join('\n AND ')}`;
     }
+    sql = ` ${sql}
+        ORDER BY id DESC`;
+    
     if (limit) sql = sql + `\n LIMIT ${limit}`;
     let rows = [];
     try {
