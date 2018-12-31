@@ -92,6 +92,7 @@ function dbmiddle(req, res, next) {
     let cnt = 0;
     // res.json(req.query);
     const q = req.query;
+    if (q.likes_contains) return res.status(200).json({accounts: []});
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
@@ -149,7 +150,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
-            return res.status(200).json({accounts: rows})
+            return res.status(200).json({accounts: []})
             valArr = val.split(',');
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
