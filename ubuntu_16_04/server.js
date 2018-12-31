@@ -132,6 +132,7 @@ function dbmiddle(req, res, next) {
             `);
             break;  
           case 'premium_now':
+            fields.push('premium', 'pstart', 'pfinish');
             wheres.push(`UNIX_TIMESTAMP() between pstart and pfinish`);
             break;
           case 'interests_any':
@@ -148,6 +149,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
+            return res.status(200).json({accounts: rows})
             valArr = val.split(',');
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
@@ -166,7 +168,12 @@ function dbmiddle(req, res, next) {
           if (oper === 'null') {
             if (Number(val)) { 
               wheres.push(`${field} IS NULL`);
-            } else { 
+            } else {
+              if (field == 'premium') {
+                fields.push('premium', 'pstart', 'pfinish');
+              } else {
+                fields.push(field);
+              }
               wheres.push(`${field} IS NOT NULL`);
             }
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
@@ -174,7 +181,11 @@ function dbmiddle(req, res, next) {
             const op = helper.FILTER_OPERATIONS[oper];
             if (!op) return res.status(400).json([]);
             log(`${field} : ${oper} : ${op} : ${val}`);
-            fields.push(field);
+            if (field == 'premium') {
+              fields.push('premium', 'pstart', 'pfinish');
+            } else {
+              fields.push(field);
+            }
             wheres.push(`${field} ${op} '${val}'`);
           } else {
             return res.status(400).json([]);
@@ -222,6 +233,17 @@ function dbmiddle(req, res, next) {
     try {
       log(sql);
       rows = await req.db.queryToMaster(sql);
+      if (unique.includes('premium')) {
+        rows = rows.map((row) => {
+          row.premium = {
+            pstart: row.pstart,
+            pfinish: row.pfinish
+          };
+          delete row.pstart;
+          delete row.pfinish;
+          return row;
+        })
+      }
     } catch(e) {
       console.log(`FILTER_ERROR: ${q.query_id}`);
       console.error(e);

@@ -27,6 +27,9 @@ const SQL_INSERT_ACCOUNT =
     VALUES
      ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );`;
 
+const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
+  ON accounts(email);`;
+
 const SQL_CREATE_INDEX_JOINED = `CREATE INDEX ix_joined
   ON accounts(joined);`;
 
@@ -196,6 +199,7 @@ module.exports = exports = {
     SQL_CREATE_ACCOUNTS,
     SQL_INSERT_ACCOUNTS,
     SQL_INSERT_ACCOUNT,
+    SQL_CREATE_INDEX_EMAIL,
     SQL_CREATE_INDEX_PREMIUM,
     SQL_CREATE_INDEX_COUNTRY,
     SQL_CREATE_INDEX_CITY,

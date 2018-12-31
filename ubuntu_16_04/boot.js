@@ -38,8 +38,8 @@ function insertEnd() {
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
-        await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-        await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+        // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+        // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
         // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
         // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
     } catch (error) {
@@ -64,7 +64,7 @@ function insertEnd() {
         const lenAccs = ALL ? data.accounts.length : 100;
         log(lenAccs);
         const accounts = [];
-        const likes = [];
+        // const likes = [];
         const interests = [];
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
@@ -86,35 +86,29 @@ function insertEnd() {
           // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS, params));
           
           if (acc.interests) {
-            // for (let j = 0, len = acc.interests.length; j < len; j++) {
-              // const interest = acc.interests[j];
               acc.interests.forEach((interest) => interests.push([interest, acc.id]));
-              // interests = interests.concat(params);
-              // inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [params]));
-            // }
           }
           
-          if (acc.likes) {
-            // for (let j = 0, len = acc.likes.length; j < len; j++) {
-              // const like = acc.likes[j];
-              // params = acc.likes.map((like) => [like.id, like.ts, acc.id]);
-              // likes = likes.concat(params);
-              acc.likes.map((like) => likes.push([like.id, like.ts, acc.id]));
-              // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [params]));
-            // }
-          }
+          // if (acc.likes) {
+          //     acc.likes.map((like) => likes.push([like.id, like.ts, acc.id]));
+          // }
         }
 
-        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]).then(insertEnd));
-        inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]).then(insertEnd));
-        inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]).then(insertEnd)); 
-
-        await sleep(2000);
+        // inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]).then(insertEnd));
+        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
+        insertEnd();
+        // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]).then(insertEnd));
+        // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+        // insertEnd();
+        // inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]).then(insertEnd)); 
+        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        insertEnd();
+        // await sleep(4000);
       }
       // global.gc();
     }
 
-    Promise.all(inserts).then(async () => {
+    // Promise.all(inserts).then(async () => {
       console.timeEnd('inserts');
       
       // console.time('references');
@@ -127,27 +121,28 @@ function insertEnd() {
       // }
       // console.timeEnd('references');
       
-      // console.time('indeces');
-      // try {
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+      console.time('indeces');
+      try {
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
           // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
-      // } catch (error) {
-          // log(error);
-      // }
-      // console.timeEnd('indeces');
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
+      } catch (error) {
+          log(error);
+      }
+      console.timeEnd('indeces');
       
       console.time('analyze');
       try {
           await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
           await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
-          await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
+          // await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
       } catch (error) {
           log(error);
       }
@@ -156,7 +151,7 @@ function insertEnd() {
       console.timeEnd('bootstrap');
       log(`Bootstrap is ended...`);
       process.exit();
-    });
+    // });
 
     // process.exit();
 })();
