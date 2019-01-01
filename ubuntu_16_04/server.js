@@ -12,7 +12,7 @@ const config = require('./config');
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 let CURRENT_ID = 0;
-
+let STATUSES = [];
 
 const mysql = new database.mysql({
      mysql: {
@@ -279,7 +279,7 @@ function dbmiddle(req, res, next) {
         }
         keys.push('interest');
       } else {
-        if (check.length > 1) return res.status(400).json([]);
+        return res.status(400).json([]);
       }
     } else {
       if (check.length > 1) return res.status(400).json([]);
@@ -382,20 +382,30 @@ function dbmiddle(req, res, next) {
     // return res.status(201).json({});
     const log = debug.extend('new');
     log(req.body);
-    // const stmtAcc = DB.prepare(helper.SQL_INSERT_ACCOUNTS);
+    
     const acc = req.body;
-    let rows = [];
-    if (acc.email) {
-      rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-      if (rows.length) return res.status(400).json({});
+    if (acc.status) {
+      if (!STATUSES.includes(acc.status))  return res.status(400).json({});
     }
-
+    
+    const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
+    if (!reEmail.test(acc.email)) return res.status(400).json({});
+    
+    console.time('findEmail');
+    let rows = [];
+    rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+    console.timeEnd('findEmail');
+    if (rows.length) return res.status(400).json({});
+    
     let params = [];
     const likes = [];
     const interests = [];
     ++CURRENT_ID;
     acc.id = CURRENT_ID;
     if (acc.premium) {
+      if (!(typeof acc.premium === 'object')) {
+        return res.status(400).json({});
+      }
       params = [
         acc.id, acc.email, acc.fname, acc.sname, acc.status, 
         acc.country, acc.city, acc.phone, acc.sex, acc.joined,
@@ -408,7 +418,13 @@ function dbmiddle(req, res, next) {
         acc.birth, null, null, null
       ];            
     }
-    await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+    try {
+      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      // rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+    } catch (e) {
+      --CURRENT_ID;
+      return res.status(400).json({});
+    }
     
     if (acc.interests) {
       acc.interests.forEach((interest) => interests.push([interest, acc.id]));
@@ -419,52 +435,18 @@ function dbmiddle(req, res, next) {
     }
 
     try {
-      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
-      await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+      if (likes.length) {
+        await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+      }
+      if (interests.length) {
+        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+      }
       // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
       return res.status(201).json({});
     } catch(err) {
       console.error(err);
       return res.status(400).json({});
     }
-
-    // // console.log(acc);
-    // if (acc.premium) {
-    //   stmtAcc.run([
-    //     acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-    //     acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-    //     acc.birth, 1, acc.premium.start, acc.premium.finish
-    //   ]);
-    // } else {
-    //   stmtAcc.run([
-    //     acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-    //     acc.country, acc.city, acc.phone, acc.sex, acc.joined,
-    //     acc.birth, null, null, null
-    //   ]);            
-    // }
-    // stmtAcc.finalize();
-    
-    // const stmtAccLikes = DB.prepare(helper.SQL_INSERT_ACCOUNTS_LIKE);
-    //   // console.log(acc);
-    // if (acc.likes) {
-    //   for (let j = 0, len = acc.likes.length; j < len; j++) {
-    //     const like = acc.likes[j];
-    //     stmtAccLikes.run([like.id, like.ts, acc.id]);
-    //   }
-    // }
-    // stmtAccLikes.finalize();
-
-    // const stmtAccInts = DB.prepare(helper.SQL_INSERT_ACCOUNTS_INTEREST);
-    // // console.log(acc);
-    // if (acc.interests) {
-    //   for (let j = 0, len = acc.interests.length; j < len; j++) {
-    //     const interest = acc.interests[j];
-    //     stmtAccInts.run([interest, acc.id]);
-    //   }
-    // }
-    // stmtAccInts.finalize();
-  
-    
   });
 
   app.post('/accounts/likes', async (req, res) => {
@@ -472,43 +454,65 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/:id', async (req, res) => {
-    return res.status(202).json({});
-    // const log = debug.extend('upd');
-    // log(req.params.id);
-    // log(req.body);
+    // return res.status(202).json({});
+    const log = debug.extend('upd');
+    log(req.params.id);
+    log(req.body);
     
-    // let sql = 'UPDATE accounts SET \n';
-    // const fields = [];
-    // const params = [];
-    // const vals = req.body;
-    // if (vals.premium) {
-    //   const premium = vals.premium;
-    //   fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
-    //   params.push(1, premium.start, premium.finish);
-    //   delete vals.premium;
-    // }
-    // for (let prop in vals) {
-    //   if (vals.hasOwnProperty(prop)) {
-    //     const val = vals[prop];
+    console.time('findById');
+    let rows = [];
+    rows = await mysql.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
+    console.timeEnd('findById');
+    if (!rows.length) return res.status(404).json({});
+    
+    const acc = req.body;
+    if (acc.status) {
+      if (!STATUSES.includes(acc.status))  return res.status(400).json({});
+    }
+    
+    if (acc.email) {
+      const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
+      if (!reEmail.test(acc.email)) return res.status(400).json({});
+      
+      console.time('findEmail');
+      rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      console.timeEnd('findEmail'); 
+      if (rows.id != req.params.id) return res.status(400).json({});
+    }
+    
+    let sql = 'UPDATE accounts SET \n';
+    const fields = [];
+    const params = [];
+    
+    if (acc.premium) {
+      if (!(typeof acc.premium === 'object')) {
+        return res.status(400).json({});
+      }
+      const premium = acc.premium;
+      fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
+      params.push(1, premium.start, premium.finish);
+      delete acc.premium;
+    }
+    for (let prop in acc) {
+      if (acc.hasOwnProperty(prop)) {
+        const val = acc[prop];
         
-        
-    //     if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
-    //       fields.push(`${prop}  = ?`);
-    //       params.push(val);
-    //     }
-    //   }
-    // }
-    // params.push(req.params.id);
-    // sql = sql + fields.join(',\n') + "\n WHERE id = ?";
+        if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
+          fields.push(`${prop}  = ?`);
+          params.push(val);
+        }
+      }
+    }
+    params.push(req.params.id);
+    sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     
-    // try {
-    //   await helper.func.updateAsync(req.db, sql, params);
-    //   return res.status(202).json({});
-    // } catch(e) {
-    //   log(e);
-    //   return res.status(404).json({});
-    // }
-    
+    try {
+      await mysql.queryToReplica(sql, params);
+      return res.status(202).json({});
+    } catch(e) {
+      log(e);
+      return res.status(400).json({});
+    }
   });
 
 
@@ -523,7 +527,9 @@ function dbmiddle(req, res, next) {
 })();
 
 async function bootstrap() {
-  const rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
+  STATUSES = rows.map(r => r.status);
+  rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
   CURRENT_ID = rows[0].max_id;
   return;
 }
