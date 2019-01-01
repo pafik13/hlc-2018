@@ -476,8 +476,10 @@ function dbmiddle(req, res, next) {
       
       console.time('findEmail');
       rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-      console.timeEnd('findEmail'); 
-      if (rows.id != req.params.id) return res.status(400).json({});
+      console.timeEnd('findEmail');
+      if (rows.length) {
+        if (rows[0].id != req.params.id) return res.status(400).json({});
+      }
     }
     
     let sql = 'UPDATE accounts SET \n';
@@ -507,6 +509,7 @@ function dbmiddle(req, res, next) {
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     
     try {
+      log(sql);
       await mysql.queryToReplica(sql, params);
       return res.status(202).json({});
     } catch(e) {
