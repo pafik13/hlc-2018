@@ -327,9 +327,10 @@ function dbmiddle(req, res, next) {
       SELECT ${keys.join(',')}, count(accounts.id) as count
         FROM accounts`;
     if (hasInterests) {
+      sql = sql.replace('interest', 'interest as interests');
       sql = `${sql}
         JOIN accounts_interest
-          ON accounts.id = accounts_interest.id`;
+          ON accounts.id = accounts_interest.acc_id`;
     }
     if (wheres.length) {
       sql = ` ${sql}
