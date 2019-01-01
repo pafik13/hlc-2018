@@ -263,10 +263,25 @@ function dbmiddle(req, res, next) {
     const q = req.query;
     if (!q.keys) return res.status(400).json([]);
     if (q.likes) return res.status(200).json({groups: []});
-
+    
+    let hasInterests = false;
     const keys = q.keys.split(',');
-    const check = keys.filter(k => !helper.GROUP_KEYS.includes(k));
-    if (check.length) return res.status(400).json([]);
+    const check = keys.filter(k => {
+      return !helper.GROUP_KEYS.includes(k);
+    });
+    
+    if (check.length === 1) {
+      if (check[0] === 'interests') {
+        hasInterests = true;
+        const index = keys.indexOf('interests');
+        if (index !== -1) {
+            keys.splice(index, 1);
+        }
+        keys.push('interest');
+      }
+    } else {
+      if (check.length > 1) return res.status(400).json([]);
+    }
     
     const wheres = [];
     let limit = 50;
@@ -293,6 +308,10 @@ function dbmiddle(req, res, next) {
               AND UNIX_TIMESTAMP(date '${Number(val) + 1}-01-01') - 1
             `);
             break;
+          case 'interests':
+            hasInterests = true;
+            wheres.push(`interest = '${val}'`);
+            break;
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
               wheres.push(`${prop} = '${val}'`);
@@ -305,8 +324,13 @@ function dbmiddle(req, res, next) {
     }
 
     let sql = `
-      SELECT ${keys.join(',')}, count(id) as count
+      SELECT ${keys.join(',')}, count(accounts.id) as count
         FROM accounts`;
+    if (hasInterests) {
+      sql = `${sql}
+        JOIN accounts_interest
+          ON accounts.id = accounts_interest.id`;
+    }
     if (wheres.length) {
       sql = ` ${sql}
         WHERE  ${wheres.join('\n AND ')}`;

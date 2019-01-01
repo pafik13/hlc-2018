@@ -61,7 +61,7 @@ const SQL_CREATE_INDEX_COUNTRY = `CREATE INDEX ix_country
   ON accounts(country);`;
 
 const SQL_CREATE_INDEX_CITY = `CREATE INDEX ix_city
-  ON accounts(country);`;
+  ON accounts(city);`;
 
 const SQL_CREATE_ACCOUNTS_LIKE =
 `CREATE TABLE accounts_like
@@ -135,6 +135,26 @@ const GROUP_FILTER_FIELDS = [
   'sex', 'status', 'country', 'city', 'sname', 'fname'
 ];
 
+const INDECES_SIMPLE_TEST = [
+  'status', 'sex', 'city', 'country', 
+  'premium',  'joined', 'birth'
+];
+
+const INDECES_SIMPLE_PROD = [
+  'phone', 'fname', 'sname',
+];
+
+const INDECES_COMPOUND_TEST = [
+  ['pstart', 'pfinish']
+];
+
+const INDECES_COMPOUND_PROD = [
+  ['birth', 'country'], ['status', 'sex'], 
+  ['country', 'status'], ['country', 'sex'], 
+  ['country', 'status', 'sex']
+];
+
+
 
 function selectAsync (db, sql) {
   const log = debug.extend('selectAsync');
@@ -201,6 +221,14 @@ function createIndexAsync (db, field, table = 'accounts') {
   });
 }
 
+function getIndexCreation(fields = []) {
+  const log = debug.extend('getIndexCreation');
+
+  if (!fields.length) throw new Error('Empty list of fields');
+  const cmd = `CREATE INDEX ix_${fields.join('_')} ON accounts(${fields.join(',')});`;
+  log(cmd);
+  return cmd;
+}
 // function processAccAsync (db, acc) {
 //   const log = debug.extend('processAccAsync');
 //   acc.id = acc.id || null;
@@ -249,11 +277,16 @@ module.exports = exports = {
     FILTER_OPERATIONS,
     GROUP_KEYS,
     GROUP_FILTER_FIELDS,
+    INDECES_SIMPLE_TEST,
+    INDECES_SIMPLE_PROD,
+    INDECES_COMPOUND_TEST,
+    INDECES_COMPOUND_PROD,
     func: {
       selectAsync,
       updateAsync,
       analyzeAsync,
       execAsync,
-      createIndexAsync
+      createIndexAsync,
+      getIndexCreation
     }
 };

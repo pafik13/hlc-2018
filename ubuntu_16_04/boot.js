@@ -13,6 +13,7 @@ const ALL = Boolean(process.env.ALL) || false;
 const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 
+let PROD = false;
 
 const mysql = new database.mysql({
      mysql: {
@@ -50,6 +51,7 @@ function insertEnd() {
     log(`entries.length = ${entries.length}`);
     console.time('inserts');
     const inserts = [];
+    PROD = entries.length > 3;
     for(let e = 0, len = entries.length; e < len; e++) {
       log(`iteration: ${e}`);
       log(`memory (MB): ${process.memoryUsage().rss / 1048576}`);
@@ -126,17 +128,22 @@ function insertEnd() {
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
           // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_FNAME);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_SNAME);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_STATUS);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_SEX);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PSTART);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PFINISH);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_BIRTH);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_JOINED);
+          for (let field of helper.INDECES_SIMPLE_TEST) {
+            await mysql.queryToMaster(helper.func.getIndexCreation([field]));
+          }
+          
+          for (let fields of helper.INDECES_COMPOUND_TEST) {
+            await mysql.queryToMaster(helper.func.getIndexCreation(fields));
+          }
+          
+          if (PROD) {
+            for (let field of helper.INDECES_SIMPLE_PROD) {
+              await mysql.queryToMaster(helper.func.getIndexCreation([field]));
+            }   
+            for (let fields of helper.INDECES_COMPOUND_PROD) {
+              await mysql.queryToMaster(helper.func.getIndexCreation(fields));
+            }
+          }
       } catch (error) {
           log(error);
       }
