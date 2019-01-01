@@ -237,8 +237,8 @@ function dbmiddle(req, res, next) {
       if (unique.includes('premium')) {
         rows = rows.map((row) => {
           row.premium = {
-            pstart: row.pstart,
-            pfinish: row.pfinish
+            start: row.pstart,
+            finish: row.pfinish
           };
           delete row.pstart;
           delete row.pfinish;
