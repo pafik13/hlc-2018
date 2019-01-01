@@ -126,6 +126,15 @@ const FILTER_OPERATIONS = {
   "gt": ">"
 };
 
+
+const GROUP_KEYS = [
+  'sex', 'status', 'interests', 'country', 'city'
+]
+
+const GROUP_FILTER_FIELDS = [
+  'sex', 'status', 'country', 'city', 'sname', 'fname'
+]
+
 function selectAsync (db, sql) {
   const log = debug.extend('selectAsync');
   log(sql);
@@ -237,6 +246,8 @@ module.exports = exports = {
     FILTERED_SIMPLE_FIELDS,
     FILTERED_COMP_FIELDS,
     FILTER_OPERATIONS,
+    GROUP_KEYS,
+    GROUP_FILTER_FIELDS,
     func: {
       selectAsync,
       updateAsync,

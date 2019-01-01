@@ -258,7 +258,72 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/group', async (req, res) => {
-    res.json({"groups": []});
+    const log = debug.extend('group');
+    
+    const q = req.query;
+    if (!q.keys) return res.status(400).json([]);
+    if (q.likes) return res.status(200).json({groups: []});
+
+    const keys = q.keys.split(',');
+    const check = keys.filter(k => !helper.GROUP_KEYS.includes(k));
+    if (check.length) return res.status(400).json([]);
+    
+    const wheres = [];
+    let limit = 50;
+    let order = 1;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const val = q[prop];
+        switch (prop) {
+          case 'query_id':
+            break;
+          case 'order':
+            order = Number(val);
+            if (![-1, 1].includes(order)) return res.status(400).json([]);
+            break;
+          case 'limit':
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            break;
+          case 'birth':
+          case 'joined':
+            wheres.push(`${prop} BETWEEN UNIX_TIMESTAMP(date '${val}-01-01') 
+              AND UNIX_TIMESTAMP(date '${Number(val) + 1}-01-01') - 1
+            `);
+            break;
+          default:
+            if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
+              wheres.push(`${prop} = '${val}'`);
+            } else {
+              return res.status(400).json([]);
+            }
+            break;
+        }
+      }
+    }
+
+    let sql = `
+      SELECT ${keys.join(',')}, count(id) as count
+        FROM accounts`;
+    if (wheres.length) {
+      sql = ` ${sql}
+        WHERE  ${wheres.join('\n AND ')}`;
+    }
+
+    sql = ` ${sql}
+        GROUP BY ${keys.join(',')}
+        ORDER BY ${keys.join(',')}
+        LIMIT ${limit}`;
+        let rows = [];
+    try {
+      log(sql);
+      rows = await req.db.queryToMaster(sql);
+    } catch(e) {
+      console.log(`FILTER_ERROR: ${q.query_id}`);
+      console.error(e);
+    }
+    // res.json({accounts: rows, wheres});
+    res.json({groups: rows});
   });
 
   app.get('/accounts/:id/recommend', async (req, res) => {
