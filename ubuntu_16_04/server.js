@@ -81,6 +81,7 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/filter', async (req, res) => {
+    const now = new Date() / 1000;
     const log = debug.extend('filter');
     
     const fields = [];
@@ -134,7 +135,7 @@ function dbmiddle(req, res, next) {
             break;  
           case 'premium_now':
             fields.push('premium', 'pstart', 'pfinish');
-            wheres.push(`UNIX_TIMESTAMP() between pstart and pfinish`);
+            wheres.push(`${now} between pstart and pfinish`);
             break;
           case 'interests_any':
           case 'interests_contains':
@@ -167,7 +168,9 @@ function dbmiddle(req, res, next) {
           const field = arr[0];
           const oper = arr[1];
           if (oper === 'null') {
-            if (Number(val)) { 
+            const isOn = Number(val);
+            if (Number.isNaN(isOn)) return res.status(400).json([]); 
+            if (isOn) { 
               wheres.push(`${field} IS NULL`);
             } else {
               if (field == 'premium') {
@@ -178,6 +181,7 @@ function dbmiddle(req, res, next) {
               wheres.push(`${field} IS NOT NULL`);
             }
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
+            if (val.indexOf(',') > -1) return res.status(400).json([]);
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
             if (!op) return res.status(400).json([]);

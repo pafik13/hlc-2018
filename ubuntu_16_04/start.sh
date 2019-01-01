@@ -9,4 +9,5 @@ find /var/lib/mysql -type f -exec touch {} \; && service mysql start
 
 mysql -uroot -e \"CREATE DATABASE IF NOT EXISTS acc;\" && 
 
+docker build -t re1ax/ubuntu-16-04 .
 docker run -it --rm -v /c/data.zip:/tmp/data/data.zip:ro re1ax/ubuntu-16-04
