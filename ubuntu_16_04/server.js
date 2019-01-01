@@ -151,7 +151,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
-            return res.status(200).json({accounts: []})
+            return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
@@ -247,7 +247,7 @@ function dbmiddle(req, res, next) {
           delete row.pstart;
           delete row.pfinish;
           return row;
-        })
+        });
       }
     } catch(e) {
       console.log(`FILTER_ERROR: ${q.query_id}`);
@@ -275,6 +275,8 @@ function dbmiddle(req, res, next) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
         switch (prop) {
+          case 'keys':
+            break;
           case 'query_id':
             break;
           case 'order':
@@ -309,20 +311,35 @@ function dbmiddle(req, res, next) {
       sql = ` ${sql}
         WHERE  ${wheres.join('\n AND ')}`;
     }
-
+    
+    // let orderBy = '';
+    // if (keys.length === 1) {
+    //   orderBy = `${keys[0]} ${order === 1 ? ' ASC' : ' DESC'}`;
+    // } else {
+    //   orderBy = `${keys.join(order === 1 ? ' ASC,' : ' DESC, ')}`;
+    // }
+    
+    const orderKeys = ['count'].concat(keys);
+    
     sql = ` ${sql}
         GROUP BY ${keys.join(',')}
-        ORDER BY ${keys.join(',')}
+        ORDER BY ${orderKeys.join(order === 1 ? ' ASC,' : ' DESC, ')} ${order === 1 ? ' ASC' : ' DESC'}
         LIMIT ${limit}`;
         let rows = [];
     try {
       log(sql);
       rows = await req.db.queryToMaster(sql);
     } catch(e) {
-      console.log(`FILTER_ERROR: ${q.query_id}`);
+      console.log(`GROUP_ERROR: ${q.query_id}`);
       console.error(e);
     }
-    // res.json({accounts: rows, wheres});
+    if (rows.length) {
+      rows.forEach(row => {
+        keys.forEach(k => {
+          if (!row[k]) delete row[k];
+        });
+      });
+    }
     res.json({groups: rows});
   });
 

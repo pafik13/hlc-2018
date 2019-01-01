@@ -128,12 +128,13 @@ const FILTER_OPERATIONS = {
 
 
 const GROUP_KEYS = [
-  'sex', 'status', 'interests', 'country', 'city'
-]
+  'sex', 'status', 'country', 'city'
+];
 
 const GROUP_FILTER_FIELDS = [
   'sex', 'status', 'country', 'city', 'sname', 'fname'
-]
+];
+
 
 function selectAsync (db, sql) {
   const log = debug.extend('selectAsync');
