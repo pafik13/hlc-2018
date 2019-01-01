@@ -126,6 +126,10 @@ function insertEnd() {
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
           // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_FNAME);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_SNAME);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_STATUS);
+          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_SEX);
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_CITY);
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_COUNTRY);
           await mysql.queryToMaster(helper.SQL_CREATE_INDEX_PREMIUM);

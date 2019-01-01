@@ -4,9 +4,9 @@ const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
   ( id INTEGER PRIMARY KEY AUTO_INCREMENT
   , email varchar(100), fname varchar(50)
-  , sname varchar(50), status text
+  , sname varchar(50), status varchar(50)
   , country varchar(50), city varchar(50)
-  , phone varchar(16), sex text
+  , phone varchar(16), sex char(1)
   , joined integer, birth integer
   , premium integer
   , pstart integer, pfinish integer
@@ -29,6 +29,18 @@ const SQL_INSERT_ACCOUNT =
 
 const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
   ON accounts(email);`;
+
+const SQL_CREATE_INDEX_FNAME = `CREATE INDEX ix_fname
+  ON accounts(fname);`;
+
+const SQL_CREATE_INDEX_SNAME = `CREATE INDEX ix_sname
+  ON accounts(sname);`;
+
+const SQL_CREATE_INDEX_SEX = `CREATE INDEX ix_sex
+  ON accounts(sex);`;
+
+const SQL_CREATE_INDEX_STATUS = `CREATE INDEX ix_status
+  ON accounts(status);`;
 
 const SQL_CREATE_INDEX_JOINED = `CREATE INDEX ix_joined
   ON accounts(joined);`;
@@ -200,6 +212,10 @@ module.exports = exports = {
     SQL_INSERT_ACCOUNTS,
     SQL_INSERT_ACCOUNT,
     SQL_CREATE_INDEX_EMAIL,
+    SQL_CREATE_INDEX_FNAME,
+    SQL_CREATE_INDEX_SNAME,
+    SQL_CREATE_INDEX_STATUS,
+    SQL_CREATE_INDEX_SEX,
     SQL_CREATE_INDEX_PREMIUM,
     SQL_CREATE_INDEX_COUNTRY,
     SQL_CREATE_INDEX_CITY,
