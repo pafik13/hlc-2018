@@ -278,6 +278,8 @@ function dbmiddle(req, res, next) {
             keys.splice(index, 1);
         }
         keys.push('interest');
+      } else {
+        if (check.length > 1) return res.status(400).json([]);
       }
     } else {
       if (check.length > 1) return res.status(400).json([]);
