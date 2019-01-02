@@ -467,7 +467,8 @@ function dbmiddle(req, res, next) {
     log(req.params.id);
     log(req.body);
     
-    if (!Number.isInteger(req.params.id)) return res.status(400).json({});
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({});
     
     // console.time('findById');
     let rows = [];
@@ -475,7 +476,7 @@ function dbmiddle(req, res, next) {
     // console.timeEnd('findById');
     // if (!rows.length) return res.status(404).json({});
     
-    if (req.params.id > MAX_ID) return res.status(404).json({});
+    if (id > MAX_ID) return res.status(404).json({});
     const acc = req.body;
     if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
     if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
@@ -490,7 +491,7 @@ function dbmiddle(req, res, next) {
       
       rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
       if (rows.length) {
-        if (rows[0].id != req.params.id) return res.status(400).json({});
+        if (rows[0].id != id) return res.status(400).json({});
       }
     }
     
@@ -524,7 +525,7 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-    params.push(req.params.id);
+    params.push(id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     // return res.status(202).json({});
     try {
@@ -532,12 +533,11 @@ function dbmiddle(req, res, next) {
       await req.db.queryToReplica(sql, params);
       return res.status(202).json({});
     } catch(e) {
-      if (e.errno == 1062) { // DUPLICATE
-        return res.status(400).json({});
-      } else {
+      if (e.errno !== 1062) { // DUPLICATE
         console.log(`UPD_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
       }
+      return res.status(400).json({});
     }
   });
 
