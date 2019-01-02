@@ -11,7 +11,7 @@ const config = require('./config');
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
-// let CURRENT_ID = 0;
+let MAX_ID = 0;
 let STATUSES = [];
 
 const mysql = new database.mysql({
@@ -386,6 +386,8 @@ function dbmiddle(req, res, next) {
     log(req.body);
     
     if (!Number.isInteger(req.body.id))return res.status(400).json({});
+    
+    MAX_ID = Math.max(MAX_ID,req.body.id);
     const acc = req.body;
     if (acc.status) {
       if (!STATUSES.includes(acc.status)) return res.status(400).json({});
@@ -420,11 +422,13 @@ function dbmiddle(req, res, next) {
       ];            
     }
     return res.status(201).json({});
-    
+
     try {
       await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
       // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     } catch (e) {
+      console.log(`NEW_ERROR: ${req.query.query_id}`);
+      console.error(e.code + ': ' + e.errno);
       return res.status(400).json({});
     }
     
@@ -447,7 +451,7 @@ function dbmiddle(req, res, next) {
       return res.status(201).json({});
     } catch(e) {
       console.log(`NEW_ERROR: ${req.query.query_id}`);
-      console.error(e);
+      console.error(e.code + ': ' + e.errno);
       return res.status(400).json({});
     }
   });
@@ -468,6 +472,7 @@ function dbmiddle(req, res, next) {
     // console.timeEnd('findById');
     // if (!rows.length) return res.status(404).json({});
     
+    if (req.params.id > MAX_ID) return res.status(404).json({});
     const acc = req.body;
     if (acc.status) {
       if (!STATUSES.includes(acc.status))  return res.status(400).json({});
@@ -516,16 +521,17 @@ function dbmiddle(req, res, next) {
     params.push(req.params.id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     return res.status(202).json({});
-    
     try {
       log(sql);
       await req.db.queryToReplica(sql, params);
       return res.status(202).json({});
     } catch(e) {
-      console.log(`UPD_ERROR: ${req.query.query_id}`);
-      console.error(e);
-      // log(e);
-      return res.status(400).json({});
+      if (e.errno == 1062) { // DUPLICATE
+        return res.status(400).json({});
+      } else {
+        console.log(`UPD_ERROR: ${req.query.query_id}`);
+        console.error(e.code + ': ' + e.errno);
+      }
     }
   });
 
@@ -545,8 +551,8 @@ function dbmiddle(req, res, next) {
 async function bootstrap() {
   let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
   STATUSES = rows.map(r => r.status);
-  // rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
-  // CURRENT_ID = rows[0].max_id;
+  rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  MAX_ID = rows[0].max_id;
   return;
 }
 
