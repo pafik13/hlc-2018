@@ -467,7 +467,7 @@ function dbmiddle(req, res, next) {
     log(req.body);
     
     // console.time('findById');
-    // let rows = [];
+    let rows = [];
     // rows = await req.db.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
     // console.timeEnd('findById');
     // if (!rows.length) return res.status(404).json({});
@@ -483,13 +483,15 @@ function dbmiddle(req, res, next) {
       if (!reEmail.test(acc.email)) return res.status(400).json({});
       
       // console.time('findEmail');
-      // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
       // console.timeEnd('findEmail');
-      // if (rows.length) {
-      //   if (rows[0].id != req.params.id) return res.status(400).json({});
-      // }
+      if (rows.length) {
+        if (rows[0].id != req.params.id) return res.status(400).json({});
+      }
     }
     
+    return res.status(202).json({});
+
     if (acc.phone) {
       const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
       if (!rePhone.test(acc.phone)) return res.status(400).json({});
@@ -520,7 +522,7 @@ function dbmiddle(req, res, next) {
     }
     params.push(req.params.id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
-    return res.status(202).json({});
+    // return res.status(202).json({});
     try {
       log(sql);
       await req.db.queryToReplica(sql, params);
