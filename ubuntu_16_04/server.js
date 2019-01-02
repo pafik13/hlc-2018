@@ -18,7 +18,7 @@ const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
         // replicas: [config.mysqlConn, config.mysqlConn],
-        replicas: Array(50).fill(config.mysqlConn),
+        replicas: Array(10).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -424,14 +424,12 @@ function dbmiddle(req, res, next) {
     }
     // return res.status(201).json({});
 
-    try {
-      await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params);
-      // rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-    } catch (e) {
-      console.log(`NEW_ERROR: ${req.query.query_id}`);
-      console.error(e.code + ': ' + e.errno);
-      return res.status(400).json({});
-    }
+    req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params)
+      .catch(e => {
+        console.log(`NEW_ERROR: ${req.query.query_id}`);
+        console.error(e.code + ': ' + e.errno);
+      })
+    return res.status(201).json({})
     
     if (acc.interests) {
       acc.interests.forEach((interest) => interests.push([interest, acc.id]));
@@ -528,17 +526,13 @@ function dbmiddle(req, res, next) {
     params.push(id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     // return res.status(202).json({});
-    try {
-      log(sql);
-      await req.db.queryToReplica(sql, params);
-      return res.status(202).json({});
-    } catch(e) {
-      if (e.errno !== 1062) { // DUPLICATE
+    log(sql);
+    req.db.queryToReplica(sql, params)
+      .catch(e => {
         console.log(`UPD_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
-      }
-      return res.status(400).json({});
-    }
+      });
+    return res.status(202).json({});
   });
 
   /**

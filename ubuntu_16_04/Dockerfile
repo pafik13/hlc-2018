@@ -38,6 +38,8 @@ ENV PATH $NVM_INSTALL_PATH/bin:$PATH
 RUN npm -v  # <= works
 RUN node -v  # <= works
 
+RUN npm install pm2 -g
+
 # Environment
 ENV DATA_PATH='/tmp/data/data.zip'
 ENV PORT=80
@@ -51,9 +53,10 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm install
 COPY *.js ./
+COPY *.json ./
 
 # Start MySQL
-ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" && node --expose-gc boot.js && npm start
+ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" && pm2 start pm2.json --env production && node --expose-gc boot.js && pm2 logs
 
 EXPOSE 80
 # CMD [ "npm", "start" ]

@@ -1,0 +1,21 @@
+{
+    "apps" : [
+      {
+        "name": "accounts",
+        "script": "server.js",
+        "env": {
+          "NODE_ENV": "production",
+          "ALL": true
+        },
+        "env_production": {
+          "NODE_ENV": "production",
+          "ALL": true
+        },
+        "log_date_format"   : "YYYY-MM-DDTHH:mm:ss.sssZ",
+        "merge_logs"        : true,
+        "watch"             : false,
+        "instances"         : 4,
+        "exec_mode"         : "cluster"
+      }
+    ]
+  }
