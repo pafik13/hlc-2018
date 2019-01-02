@@ -113,15 +113,16 @@ function insertEnd() {
     // Promise.all(inserts).then(async () => {
       console.timeEnd('inserts');
       
-      // console.time('references');
-      // try {
-          // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+      console.time('references');
+      try {
+        if (PROD) {
+          await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
           // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-      //     null;
-      // } catch (error) {
-      //     log(error);
-      // }
-      // console.timeEnd('references');
+        }
+      } catch (error) {
+          log(error);
+      }
+      console.timeEnd('references');
       
       console.time('indeces');
       try {
@@ -137,6 +138,8 @@ function insertEnd() {
           }
           
           if (PROD) {
+            await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS$ACC_ID);
+            
             for (let field of helper.INDECES_SIMPLE_PROD) {
               await mysql.queryToMaster(helper.func.getIndexCreation([field]));
             }   

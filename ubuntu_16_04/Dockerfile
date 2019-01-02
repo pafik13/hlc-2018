@@ -44,7 +44,7 @@ ENV PORT=80
 ENV NODE_ENV=production
 ENV ALL=true
 ENV MYSQL_USER=root
-ENV DEBUG=accounts:boot*
+# ENV DEBUG=accounts:boot*
 
 # Create app directory
 WORKDIR /usr/src/app

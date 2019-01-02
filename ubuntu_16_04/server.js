@@ -84,7 +84,7 @@ function dbmiddle(req, res, next) {
     const now = new Date() / 1000;
     const log = debug.extend('filter');
     
-    const fields = [];
+    const fields = new Set();
     const wheres = [];
     let iSQL = '';
     let lSQL = '';
@@ -106,35 +106,37 @@ function dbmiddle(req, res, next) {
             if (!Number.isInteger(limit)) return res.status(400).json([]);
             break;
           case 'email_domain':
-            fields.push('email');
+            fields.add('email');
             wheres.push(`email LIKE '%@${val}'`);
             break;
           case 'fname_any':
-            fields.push('fname');
+            fields.add('fname');
             vals = val.split(',').map(i => `'${i}'`).join(',');
             wheres.push(`fname IN (${vals})`);
             break;
           case 'sname_starts':
-            fields.push('sname');
+            fields.add('sname');
             wheres.push(`sname LIKE '${val}%'`);
             break;
           case 'phone_code':
-            fields.push('phone');
+            fields.add('phone');
             wheres.push(`phone LIKE '8(${val})%'`);
             break;
           case 'city_any':
-            fields.push('city');
+            fields.add('city');
             vals = val.split(',').map(i => `'${i}'`).join(',');
             wheres.push(`city IN (${vals})`);
             break;
           case 'birth_year':
-            fields.push('birth');
+            fields.add('birth');
             wheres.push(`birth BETWEEN UNIX_TIMESTAMP(date '${val}-01-01') 
               AND UNIX_TIMESTAMP(date '${Number(val) + 1}-01-01') - 1
             `);
             break;  
           case 'premium_now':
-            fields.push('premium', 'pstart', 'pfinish');
+            fields.add('premium');
+            fields.add('pstart');
+            fields.add('pfinish');
             wheres.push(`${now} between pstart and pfinish`);
             break;
           case 'interests_any':
@@ -174,9 +176,11 @@ function dbmiddle(req, res, next) {
               wheres.push(`${field} IS NULL`);
             } else {
               if (field == 'premium') {
-                fields.push('premium', 'pstart', 'pfinish');
+                fields.add('premium');
+                fields.add('pstart');
+                fields.add('pfinish');
               } else {
-                fields.push(field);
+                fields.add(field);
               }
               wheres.push(`${field} IS NOT NULL`);
             }
@@ -187,9 +191,11 @@ function dbmiddle(req, res, next) {
             if (!op) return res.status(400).json([]);
             log(`${field} : ${oper} : ${op} : ${val}`);
             if (field == 'premium') {
-              fields.push('premium', 'pstart', 'pfinish');
+              fields.add('premium');
+              fields.add('pstart');
+              fields.add('pfinish');
             } else {
-              fields.push(field);
+              fields.add(field);
             }
             wheres.push(`${field} ${op} '${val}'`);
           } else {
@@ -199,14 +205,10 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-    // res.json(wheres);
-    // console.log(wheres.join(" "));
-    // email, country, id, status, birth
-    let unique = [...new Set(fields)];
-    if (!unique.includes('email')) {
-      unique.push('email');
-    }
-    unique.push('id');
+
+    fields.add('email');
+    fields.add('id');
+    let unique = [...fields];
     let sql = `
       SELECT ${unique.join(',')}
         FROM accounts`;
@@ -391,10 +393,10 @@ function dbmiddle(req, res, next) {
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
     
-    console.time('findEmail');
+    // console.time('findEmail');
     let rows = [];
-    rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-    console.timeEnd('findEmail');
+    rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+    // console.timeEnd('findEmail');
     if (rows.length) return res.status(400).json({});
     
     let params = [];
@@ -419,8 +421,8 @@ function dbmiddle(req, res, next) {
       ];            
     }
     try {
-      await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
-      // rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     } catch (e) {
       --CURRENT_ID;
       return res.status(400).json({});
@@ -436,15 +438,16 @@ function dbmiddle(req, res, next) {
 
     try {
       if (likes.length) {
-        await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+        await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
       }
       if (interests.length) {
-        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
       }
-      // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      // await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
       return res.status(201).json({});
-    } catch(err) {
-      console.error(err);
+    } catch(e) {
+      console.log(`NEW_ERROR: ${req.query.query_id}`);
+      console.error(e);
       return res.status(400).json({});
     }
   });
@@ -459,10 +462,10 @@ function dbmiddle(req, res, next) {
     log(req.params.id);
     log(req.body);
     
-    console.time('findById');
+    // console.time('findById');
     let rows = [];
-    rows = await mysql.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
-    console.timeEnd('findById');
+    rows = await req.db.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
+    // console.timeEnd('findById');
     if (!rows.length) return res.status(404).json({});
     
     const acc = req.body;
@@ -474,9 +477,9 @@ function dbmiddle(req, res, next) {
       const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
       if (!reEmail.test(acc.email)) return res.status(400).json({});
       
-      console.time('findEmail');
-      rows = await mysql.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-      console.timeEnd('findEmail');
+      // console.time('findEmail');
+      rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      // console.timeEnd('findEmail');
       if (rows.length) {
         if (rows[0].id != req.params.id) return res.status(400).json({});
       }
@@ -510,15 +513,19 @@ function dbmiddle(req, res, next) {
     
     try {
       log(sql);
-      await mysql.queryToReplica(sql, params);
+      await req.db.queryToReplica(sql, params);
       return res.status(202).json({});
     } catch(e) {
-      log(e);
+      console.log(`UPD_ERROR: ${req.query.query_id}`);
+      console.error(e);
+      // log(e);
       return res.status(400).json({});
     }
   });
 
-
+  /**
+   * MAIN CALL
+   */
   try {
     await bootstrap();
   } catch(err) {
