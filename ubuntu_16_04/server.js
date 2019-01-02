@@ -11,7 +11,7 @@ const config = require('./config');
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
-let CURRENT_ID = 0;
+// let CURRENT_ID = 0;
 let STATUSES = [];
 
 const mysql = new database.mysql({
@@ -385,25 +385,24 @@ function dbmiddle(req, res, next) {
     const log = debug.extend('new');
     log(req.body);
     
+    if (!Number.isInteger(req.body.id))return res.status(400).json({});
     const acc = req.body;
     if (acc.status) {
-      if (!STATUSES.includes(acc.status))  return res.status(400).json({});
+      if (!STATUSES.includes(acc.status)) return res.status(400).json({});
     }
     
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
     
     // console.time('findEmail');
-    let rows = [];
-    rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+    // let rows = [];
+    // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     // console.timeEnd('findEmail');
-    if (rows.length) return res.status(400).json({});
+    // if (rows.length) return res.status(400).json({});
     
     let params = [];
     const likes = [];
     const interests = [];
-    ++CURRENT_ID;
-    acc.id = CURRENT_ID;
     if (acc.premium) {
       if (!(typeof acc.premium === 'object')) {
         return res.status(400).json({});
@@ -420,11 +419,12 @@ function dbmiddle(req, res, next) {
         acc.birth, null, null, null
       ];            
     }
+    return res.status(201).json({});
+    
     try {
       await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
       // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     } catch (e) {
-      --CURRENT_ID;
       return res.status(400).json({});
     }
     
@@ -463,10 +463,10 @@ function dbmiddle(req, res, next) {
     log(req.body);
     
     // console.time('findById');
-    let rows = [];
-    rows = await req.db.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
+    // let rows = [];
+    // rows = await req.db.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
     // console.timeEnd('findById');
-    if (!rows.length) return res.status(404).json({});
+    // if (!rows.length) return res.status(404).json({});
     
     const acc = req.body;
     if (acc.status) {
@@ -478,11 +478,16 @@ function dbmiddle(req, res, next) {
       if (!reEmail.test(acc.email)) return res.status(400).json({});
       
       // console.time('findEmail');
-      rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
       // console.timeEnd('findEmail');
-      if (rows.length) {
-        if (rows[0].id != req.params.id) return res.status(400).json({});
-      }
+      // if (rows.length) {
+      //   if (rows[0].id != req.params.id) return res.status(400).json({});
+      // }
+    }
+    
+    if (acc.phone) {
+      const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
+      if (!rePhone.test(acc.phone)) return res.status(400).json({});
     }
     
     let sql = 'UPDATE accounts SET \n';
@@ -510,6 +515,7 @@ function dbmiddle(req, res, next) {
     }
     params.push(req.params.id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
+    return res.status(202).json({});
     
     try {
       log(sql);
@@ -539,8 +545,8 @@ function dbmiddle(req, res, next) {
 async function bootstrap() {
   let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
   STATUSES = rows.map(r => r.status);
-  rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
-  CURRENT_ID = rows[0].max_id;
+  // rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  // CURRENT_ID = rows[0].max_id;
   return;
 }
 
