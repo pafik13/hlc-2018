@@ -12,11 +12,7 @@ class MySQL {
     connect() {
         return new Promise((resolve, reject) => {
             try {
-                this.pool = mysql.createPoolCluster({
-                    waitForConnections: true,
-                    connectionLimit: 30,
-                    queueLimit: 0
-                });
+                this.pool = mysql.createPoolCluster();
                 this.pool.add('MASTER', this.config.master);
                 this.pool.getConnection('MASTER', (err, conn) => {
                     if (err) return reject(err);
@@ -48,7 +44,7 @@ class MySQL {
         } else {
             return new Promise((resolve, reject) => {
                 this.pool.getConnection('SLAVE*', 'ORDER', (err, conn) => {
-                    if (err) reject(err);
+                    if (err) return reject(err);
                     conn.query(query, params, (err, res) => {
                         if (err) reject(err);
                         else resolve(res);
@@ -62,13 +58,13 @@ class MySQL {
     queryToMaster(query, params) {
         return new Promise((resolve, reject) => {
             this.pool.getConnection('MASTER', (err, conn) => {
-                if (err) reject(err);
+                if (err) return reject(err);
                 conn.query(query, params, (err, res) => {
                     if (err) reject(err);
                     else resolve(res);
                 });
-                // conn.release();
-                this.pool.releaseConnection(conn);
+                conn.release();
+                // this.pool.releaseConnection(conn);
             });
         });
     }

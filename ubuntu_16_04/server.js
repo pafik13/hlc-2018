@@ -17,7 +17,8 @@ let STATUSES = [];
 const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
-        replicas: [config.mysqlConn, config.mysqlConn],
+        // replicas: [config.mysqlConn, config.mysqlConn],
+        replicas: Array(3).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -239,7 +240,7 @@ function dbmiddle(req, res, next) {
     let rows = [];
     try {
       log(sql);
-      rows = await req.db.queryToMaster(sql);
+      rows = await req.db.queryToReplica(sql);
       if (unique.includes('premium')) {
         rows = rows.map((row) => {
           row.premium = {
@@ -357,7 +358,7 @@ function dbmiddle(req, res, next) {
         let rows = [];
     try {
       log(sql);
-      rows = await req.db.queryToMaster(sql);
+      rows = await req.db.queryToReplica(sql);
     } catch(e) {
       console.log(`GROUP_ERROR: ${q.query_id}`);
       console.error(e);
@@ -398,7 +399,7 @@ function dbmiddle(req, res, next) {
     
     // console.time('findEmail');
     // let rows = [];
-    // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+    // rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     // console.timeEnd('findEmail');
     // if (rows.length) return res.status(400).json({});
     
@@ -424,8 +425,8 @@ function dbmiddle(req, res, next) {
     return res.status(201).json({});
 
     try {
-      await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
-      // rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params);
+      // rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
     } catch (e) {
       console.log(`NEW_ERROR: ${req.query.query_id}`);
       console.error(e.code + ': ' + e.errno);
@@ -442,12 +443,12 @@ function dbmiddle(req, res, next) {
 
     try {
       if (likes.length) {
-        await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+        await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
       }
       if (interests.length) {
         await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
       }
-      // await req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params);
+      // await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params);
       return res.status(201).json({});
     } catch(e) {
       console.log(`NEW_ERROR: ${req.query.query_id}`);
@@ -468,7 +469,7 @@ function dbmiddle(req, res, next) {
     
     // console.time('findById');
     let rows = [];
-    // rows = await req.db.queryToMaster('SELECT id FROM accounts WHERE id = ?', req.params.id);
+    // rows = await req.db.queryToReplica('SELECT id FROM accounts WHERE id = ?', req.params.id);
     // console.timeEnd('findById');
     // if (!rows.length) return res.status(404).json({});
     
@@ -483,19 +484,19 @@ function dbmiddle(req, res, next) {
       if (!reEmail.test(acc.email)) return res.status(400).json({});
       
       // console.time('findEmail');
-      rows = await req.db.queryToMaster(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
+      rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
       // console.timeEnd('findEmail');
       if (rows.length) {
         if (rows[0].id != req.params.id) return res.status(400).json({});
       }
     }
     
-    return res.status(202).json({});
-
     if (acc.phone) {
       const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
       if (!rePhone.test(acc.phone)) return res.status(400).json({});
     }
+    
+    return res.status(202).json({});
     
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
