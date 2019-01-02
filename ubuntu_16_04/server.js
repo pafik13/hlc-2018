@@ -18,7 +18,7 @@ const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
         // replicas: [config.mysqlConn, config.mysqlConn],
-        replicas: Array(3).fill(config.mysqlConn),
+        replicas: Array(50).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -422,7 +422,7 @@ function dbmiddle(req, res, next) {
         acc.birth, null, null, null
       ];            
     }
-    return res.status(201).json({});
+    // return res.status(201).json({});
 
     try {
       await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params);
@@ -438,7 +438,7 @@ function dbmiddle(req, res, next) {
     }
     
     if (acc.likes) {
-      acc.likes.map((like) => likes.push([like.id, like.ts, acc.id]));
+      acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
     }
 
     try {
@@ -467,6 +467,8 @@ function dbmiddle(req, res, next) {
     log(req.params.id);
     log(req.body);
     
+    if (!Number.isInteger(req.params.id)) return res.status(400).json({});
+    
     // console.time('findById');
     let rows = [];
     // rows = await req.db.queryToReplica('SELECT id FROM accounts WHERE id = ?', req.params.id);
@@ -475,6 +477,9 @@ function dbmiddle(req, res, next) {
     
     if (req.params.id > MAX_ID) return res.status(404).json({});
     const acc = req.body;
+    if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
+    if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
+
     if (acc.status) {
       if (!STATUSES.includes(acc.status))  return res.status(400).json({});
     }
@@ -483,9 +488,7 @@ function dbmiddle(req, res, next) {
       const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
       if (!reEmail.test(acc.email)) return res.status(400).json({});
       
-      // console.time('findEmail');
       rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-      // console.timeEnd('findEmail');
       if (rows.length) {
         if (rows[0].id != req.params.id) return res.status(400).json({});
       }
@@ -495,8 +498,6 @@ function dbmiddle(req, res, next) {
       const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
       if (!rePhone.test(acc.phone)) return res.status(400).json({});
     }
-    
-    return res.status(202).json({});
     
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
@@ -511,6 +512,8 @@ function dbmiddle(req, res, next) {
       params.push(1, premium.start, premium.finish);
       delete acc.premium;
     }
+    if (acc.interests) return res.status(202).json({});
+    // return res.status(202).json({});
     for (let prop in acc) {
       if (acc.hasOwnProperty(prop)) {
         const val = acc[prop];
