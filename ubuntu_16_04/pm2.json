@@ -14,7 +14,7 @@
         "log_date_format"   : "YYYY-MM-DDTHH:mm:ss.sssZ",
         "merge_logs"        : true,
         "watch"             : false,
-        "instances"         : 4,
+        "instances"         : 2,
         "exec_mode"         : "cluster"
       }
     ]

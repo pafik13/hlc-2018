@@ -374,10 +374,16 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/:id/recommend', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({});
+    if (id > MAX_ID) return res.status(404).json({});
     res.json({"accounts": []});
   });
 
   app.get('/accounts/:id/suggest', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({});
+    if (id > MAX_ID) return res.status(404).json({});
     res.json({"accounts": []});
   });
 
@@ -386,7 +392,7 @@ function dbmiddle(req, res, next) {
     const log = debug.extend('new');
     log(req.body);
     
-    if (!Number.isInteger(req.body.id))return res.status(400).json({});
+    if (!Number.isInteger(req.body.id)) return res.status(400).json({});
     
     MAX_ID = Math.max(MAX_ID,req.body.id);
     const acc = req.body;
@@ -474,7 +480,10 @@ function dbmiddle(req, res, next) {
     // console.timeEnd('findById');
     // if (!rows.length) return res.status(404).json({});
     
-    if (id > MAX_ID) return res.status(404).json({});
+    if (id > MAX_ID) {
+      // console.log(`404: id=${id}, MAX_ID=${MAX_ID}, q_id=${req.query.query_id}`)
+      return res.status(404).json({});
+    }
     const acc = req.body;
     if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
     if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
@@ -539,7 +548,7 @@ function dbmiddle(req, res, next) {
    * MAIN CALL
    */
   try {
-    await bootstrap();
+    await start();
   } catch(err) {
     console.error(err);
   }
@@ -548,11 +557,13 @@ function dbmiddle(req, res, next) {
   console.log(`Running on http://${HOST}:${PORT}`);
 })();
 
-async function bootstrap() {
-  let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
-  STATUSES = rows.map(r => r.status);
-  rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
-  MAX_ID = rows[0].max_id;
+async function start() {
+  // let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
+  // STATUSES = rows.map(r => r.status);
+  // rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  // MAX_ID = rows[0].max_id;
+  STATUSES = ["свободны", "заняты", "всё сложно"];
+  MAX_ID = 30000;
   return;
 }
 

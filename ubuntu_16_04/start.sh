@@ -11,3 +11,7 @@ mysql -uroot -e \"CREATE DATABASE IF NOT EXISTS acc;\" &&
 
 docker build -t re1ax/ubuntu-16-04 .
 docker run -it --rm -v /c/data.zip:/tmp/data/data.zip:ro re1ax/ubuntu-16-04
+docker run -it --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 80:80 re1ax/ubuntu-16-04
+
+docker rm $(docker ps -a -q)
+docker rmi $(docker images -f "dangling=true" -q)
