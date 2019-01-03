@@ -11,3 +11,5 @@ docker run --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/node-w
 
 
 test_accounts_261218.zip
+
+docker run --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/ubuntu-16-04
