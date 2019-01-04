@@ -374,17 +374,165 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/:id/recommend', async (req, res) => {
+    const log = debug.extend('recommend');
+
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({});
     if (id > MAX_ID) return res.status(404).json({});
-    res.json({"accounts": []});
+    
+    const wheres = [];
+    let limit = 20;
+    const q = req.query;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const val = q[prop];
+        switch (prop) {
+          case 'query_id':
+            break;
+          case 'limit':
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (limit < 1) return res.status(400).json([]);
+            break;
+          case 'city':
+          case 'country':
+            if (!val) return res.status(400).json([]);
+            wheres.push(`${prop} = '${val}'`);
+            break;
+          default:
+            return res.status(400).json([]);
+        }
+      }
+    }
+    wheres.push(`acc.sex != (select sex from accounts where id = ${id})`);
+    wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
+    wheres.push(`acc_id != ${id}`);
+    let sql = `
+      SELECT id, email, status, fname, sname, birth, premium, pstart, pfinish
+           , case status when 'свободны' then 1000 when 'всё сложно' then 2000 when 'заняты' then 3000 end as s_ind
+           , i.cnt
+           , (select abs(accounts.birth - a.birth) from accounts a where a.id = ${id}) as b_diff
+        FROM accounts
+        JOIN (
+          SELECT acc_id, count(acc_id) as cnt
+            FROM accounts_interest acc_i
+            JOIN accounts acc ON acc.id = acc_i.acc_id
+           WHERE ${wheres.join('\n AND ')}
+           GROUP 
+              BY  acc_id
+            ) i
+          ON accounts.id = i.acc_id
+       ORDER BY s_ind, b_diff
+       LIMIT ${limit}`;
+    return res.json({"accounts": []});
+
+    let rows = [];
+    try {
+      log(sql);
+      rows = await req.db.queryToReplica(sql);
+    } catch(e) {
+      console.log(`RECOMMEND_ERROR: ${q.query_id}`);
+      console.error(e);
+    }
+    if (rows.length) {
+      rows.forEach(row => {
+        if (!row.premium) {
+          delete row.premium;
+        } else {
+          row.premium = {
+            start: row.pstart,
+            finish: row.pfinish
+          };
+        }
+        delete row.pstart;
+        delete row.pfinish;
+        return row;
+      });
+    }
+    // res.json({groups: rows});
+    
+    res.json({"accounts": rows});
   });
 
   app.get('/accounts/:id/suggest', async (req, res) => {
+    const log = debug.extend('suggest');
+
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({});
     if (id > MAX_ID) return res.status(404).json({});
-    res.json({"accounts": []});
+    
+ const wheres = [];
+    let limit = 20;
+    const q = req.query;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const val = q[prop];
+        switch (prop) {
+          case 'query_id':
+            break;
+          case 'limit':
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (limit < 1) return res.status(400).json([]);
+            break;
+          case 'city':
+          case 'country':
+            if (!val) return res.status(400).json([]);
+            wheres.push(`${prop} = '${val}'`);
+            break;
+          default:
+            return res.status(400).json([]);
+        }
+      }
+    }
+    wheres.push(`acc.sex != (select sex from accounts where id = ${id})`);
+    wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
+    wheres.push(`acc_id != ${id}`);
+    let sql = `
+      SELECT id, email, status, fname, sname, birth, premium, pstart, pfinish
+           , case status when 'свободны' then 1000 when 'всё сложно' then 2000 when 'заняты' then 3000 end as s_ind
+           , i.cnt
+           , (select abs(accounts.birth - a.birth) from accounts a where a.id = ${id}) as b_diff
+        FROM accounts
+        JOIN (
+          SELECT acc_id, count(acc_id) as cnt
+            FROM accounts_interest acc_i
+            JOIN accounts acc ON acc.id = acc_i.acc_id
+           WHERE ${wheres.join('\n AND ')}
+           GROUP 
+              BY  acc_id
+            ) i
+          ON accounts.id = i.acc_id
+       ORDER BY s_ind, b_diff
+       LIMIT ${limit}`;
+    return res.json({"accounts": []});
+
+    let rows = [];
+    try {
+      log(sql);
+      rows = await req.db.queryToReplica(sql);
+    } catch(e) {
+      console.log(`RECOMMEND_ERROR: ${q.query_id}`);
+      console.error(e);
+    }
+    if (rows.length) {
+      rows.forEach(row => {
+        if (!row.premium) {
+          delete row.premium;
+        } else {
+          row.premium = {
+            start: row.pstart,
+            finish: row.pfinish
+          };
+        }
+        delete row.pstart;
+        delete row.pfinish;
+        return row;
+      });
+    }
+    // res.json({groups: rows});
+    
+    res.json({"accounts": rows});
   });
 
   app.post('/accounts/new', async (req, res) => {
