@@ -113,7 +113,6 @@ const INDECES_SIMPLE_PROD = [
 ];
 
 const INDECES_COMPOUND_TEST = [
-  ['pstart', 'pfinish']
 ];
 
 const INDECES_COMPOUND_PROD = [

@@ -7,7 +7,7 @@ const mysqlConn = {
     user: C_USER,
     password: C_PASS,
     database: C_DB,
-    charset: 'utf8mb4'
+    charset: 'utf8'
 };
 
 module.exports = exports = {

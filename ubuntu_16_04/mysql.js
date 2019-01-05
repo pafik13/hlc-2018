@@ -45,11 +45,7 @@ class MySQL {
             return new Promise((resolve, reject) => {
                 this.pool.getConnection('SLAVE*', 'ORDER', (err, conn) => {
                     if (err) return reject(err);
-                    conn.query({
-                        sql : query,
-                        timeout: 100,
-                        values: params
-                    }, (err, res) => {
+                    conn.query(query, params, (err, res) => {
                         if (err) reject(err);
                         else resolve(res);
                     });
@@ -63,11 +59,7 @@ class MySQL {
         return new Promise((resolve, reject) => {
             this.pool.getConnection('MASTER', (err, conn) => {
                 if (err) return reject(err);
-                conn.query({
-                    sql : query,
-                    timeout: 100,
-                    values: params
-                }, (err, res) => {
+                conn.query(query, params, (err, res) => {
                     if (err) reject(err);
                     else resolve(res);
                 });

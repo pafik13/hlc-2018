@@ -100,6 +100,7 @@ function dbmiddle(req, res, next) {
     
     if (UPDATES || INSERTS) {
       UPDATES = 0;
+      INSERTS = 0;
       const label = 'UPSERT_COMMIT_' + req.query.query_id;
       console.time(label);
       await req.db.queryToMaster('COMMIT;');
@@ -156,6 +157,7 @@ function dbmiddle(req, res, next) {
             `);
             break;  
           case 'premium_now':
+            return res.status(200).json({accounts: []});
             fields.add('premium');
             fields.add('pstart');
             fields.add('pfinish');
@@ -286,6 +288,7 @@ function dbmiddle(req, res, next) {
     
     if (UPDATES || INSERTS) {
       UPDATES = 0;
+      INSERTS = 0;
       const label = 'UPSERT_COMMIT_' + req.query.query_id;
       console.time(label);
       await req.db.queryToMaster('COMMIT;');
@@ -344,7 +347,7 @@ function dbmiddle(req, res, next) {
             break;
           case 'interests':
             hasInterests = true;
-            wheres.push(`interest = '${val}'`);
+            wheres.push(`interest = ${INTERESTS[val]}`);
             break;
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
@@ -361,7 +364,7 @@ function dbmiddle(req, res, next) {
       SELECT ${keys.join(',')}, count(accounts.id) as count
         FROM accounts`;
     if (hasInterests) {
-      sql = sql.replace('interest', 'interest as interests');
+      sql = sql.replace('interest', '(SELECT name FROM interest WHERE id = accounts_interest.interest) as interests');
       sql = `${sql}
         JOIN accounts_interest
           ON accounts.id = accounts_interest.acc_id`;
@@ -371,15 +374,7 @@ function dbmiddle(req, res, next) {
         WHERE  ${wheres.join('\n AND ')}`;
     }
     
-    // let orderBy = '';
-    // if (keys.length === 1) {
-    //   orderBy = `${keys[0]} ${order === 1 ? ' ASC' : ' DESC'}`;
-    // } else {
-    //   orderBy = `${keys.join(order === 1 ? ' ASC,' : ' DESC, ')}`;
-    // }
-    
-    const orderKeys = ['count'].concat(keys);
-    
+    const orderKeys = ['count'].concat(keys.map(k => k === 'interest' ? 'interests' : k));
     sql = ` ${sql}
         GROUP BY ${keys.join(',')}
         ORDER BY ${orderKeys.join(order === 1 ? ' ASC,' : ' DESC, ')} ${order === 1 ? ' ASC' : ' DESC'}
@@ -407,6 +402,7 @@ function dbmiddle(req, res, next) {
 
     if (UPDATES || INSERTS) {
       UPDATES = 0;
+      INSERTS = 0;
       const label = 'UPSERT_COMMIT_' + req.query.query_id;
       console.time(label);
       await req.db.queryToMaster('COMMIT;');
@@ -441,6 +437,8 @@ function dbmiddle(req, res, next) {
         }
       }
     }
+    return res.json({"accounts": []});
+
     wheres.push(`acc.sex != (select sex from accounts where id = ${id})`);
     wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
     wheres.push(`acc_id != ${id}`);
@@ -495,6 +493,7 @@ function dbmiddle(req, res, next) {
 
     if (UPDATES || INSERTS) {
       UPDATES = 0;
+      INSERTS = 0;
       const label = 'UPSERT_COMMIT_' + req.query.query_id;
       console.time(label);
       await req.db.queryToMaster('COMMIT;');
@@ -529,54 +528,7 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-    wheres.push(`acc.sex != (select sex from accounts where id = ${id})`);
-    wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
-    wheres.push(`acc_id != ${id}`);
-    let sql = `
-      SELECT id, email, status, fname, sname, birth, premium, pstart, pfinish
-           , case status when 'свободны' then 1000 when 'всё сложно' then 2000 when 'заняты' then 3000 end as s_ind
-           , i.cnt
-           , (select abs(accounts.birth - a.birth) from accounts a where a.id = ${id}) as b_diff
-        FROM accounts
-        JOIN (
-          SELECT acc_id, count(acc_id) as cnt
-            FROM accounts_interest acc_i
-            JOIN accounts acc ON acc.id = acc_i.acc_id
-           WHERE ${wheres.join('\n AND ')}
-           GROUP 
-              BY  acc_id
-            ) i
-          ON accounts.id = i.acc_id
-       ORDER BY s_ind, b_diff
-       LIMIT ${limit}`;
     return res.json({"accounts": []});
-
-    let rows = [];
-    try {
-      log(sql);
-      rows = await req.db.queryToReplica(sql);
-    } catch(e) {
-      console.log(`RECOMMEND_ERROR: ${q.query_id}`);
-      console.error(e);
-    }
-    if (rows.length) {
-      rows.forEach(row => {
-        if (!row.premium) {
-          delete row.premium;
-        } else {
-          row.premium = {
-            start: row.pstart,
-            finish: row.pfinish
-          };
-        }
-        delete row.pstart;
-        delete row.pfinish;
-        return row;
-      });
-    }
-    // res.json({groups: rows});
-    
-    res.json({"accounts": rows});
   });
 
   app.post('/accounts/new', async (req, res) => {

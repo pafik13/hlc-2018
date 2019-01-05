@@ -56,7 +56,7 @@ COPY *.js ./
 COPY *.json ./
 
 # Start MySQL
-ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" && pm2 start pm2.json --env production && node --expose-gc boot.js && pm2 logs
+ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
 
 EXPOSE 80
 # CMD [ "npm", "start" ]
