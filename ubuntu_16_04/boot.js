@@ -13,6 +13,21 @@ const ALL = Boolean(process.env.ALL) || false;
 const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 
+const INTERESTS = {};
+let INTEREST = 0;
+
+const COUNTRIES = {};
+let COUNTRY = 0;
+
+const CITIES = {};
+let CITY = 0;
+
+const STATUSES = {
+  "свободны": 1,
+  "заняты": 2,
+  "всё сложно": 3
+};
+
 let PROD = false;
 
 const mysql = new database.mysql({
@@ -29,6 +44,12 @@ function insertEnd() {
   logInsertEnd(`memory (MB): ${process.memoryUsage().rss / 1048576}`);
 }
 
+async function insertDict(objDict, objName) {
+  let params = [];
+  Object.keys(objDict).forEach(key => params.push([objDict[key], key]));
+  await mysql.queryToReplica(helper.func.getDictInsertion(objName), [params]);
+}
+
 (async () => {
 
     const log = debug.extend('main');
@@ -39,6 +60,10 @@ function insertEnd() {
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
+        
+        await mysql.queryToMaster(helper.func.getDictCreation('country'));
+        await mysql.queryToMaster(helper.func.getDictCreation('city'));
+        await mysql.queryToMaster(helper.func.getDictCreation('interest'));
         // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
         // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
         // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
@@ -50,7 +75,7 @@ function insertEnd() {
     const entries = zip.getEntries();
     log(`entries.length = ${entries.length}`);
     console.time('inserts');
-    const inserts = [];
+
     PROD = entries.length > 3;
     for(let e = 0, len = entries.length; e < len; e++) {
       log(`iteration: ${e}`);
@@ -70,17 +95,29 @@ function insertEnd() {
         const interests = [];
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
+          if (acc.country){
+            if (!COUNTRIES[acc.country]) {
+              COUNTRIES[acc.country] = ++COUNTRY;
+            }
+          }
+          
+          if (acc.city){
+            if (!CITIES[acc.city]) {
+              CITIES[acc.city] = ++CITY;
+            }
+          }
+          
           let params = [];
           if (acc.premium) {
             params = [
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.id, acc.email, acc.fname, acc.sname, STATUSES[acc.status], 
+              COUNTRIES[acc.country], CITIES[acc.city], acc.phone, acc.sex, acc.joined,
               acc.birth, 1, acc.premium.start, acc.premium.finish
             ];
           } else {
             params = [
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.id, acc.email, acc.fname, acc.sname, STATUSES[acc.status], 
+              COUNTRIES[acc.country], CITIES[acc.city], acc.phone, acc.sex, acc.joined,
               acc.birth, null, null, null
             ];            
           }
@@ -88,7 +125,12 @@ function insertEnd() {
           // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS, params));
           
           if (acc.interests) {
-              acc.interests.forEach((interest) => interests.push([interest, acc.id]));
+              acc.interests.forEach((interest) => {
+                if (!INTERESTS[interest]) {
+                  INTERESTS[interest] = ++INTEREST;
+                }
+                interests.push([INTERESTS[interest], acc.id]);
+              });
           }
           
           // if (acc.likes) {
@@ -109,19 +151,23 @@ function insertEnd() {
       }
       // global.gc();
     }
+    
+    await insertDict(COUNTRIES, 'country');
+    await insertDict(CITIES, 'city');
+    await insertDict(INTERESTS, 'interest');
 
     // Promise.all(inserts).then(async () => {
       console.timeEnd('inserts');
       
       console.time('references');
-      try {
-        if (PROD) {
-          await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
-          // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-        }
-      } catch (error) {
-          log(error);
-      }
+      // try {
+      //   if (PROD) {
+      //     await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+      //     // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+      //   }
+      // } catch (error) {
+      //     log(error);
+      // }
       console.timeEnd('references');
       
       console.time('indeces');
@@ -164,6 +210,7 @@ function insertEnd() {
       
       console.timeEnd('bootstrap');
       log(`Bootstrap is ended...`);
+      // log(countries);
       process.exit();
     // });
 
