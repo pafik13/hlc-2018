@@ -12,13 +12,21 @@ const config = require('./config');
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 let MAX_ID = 0;
-let STATUSES = [];
+const STATUSES = [
+  "свободны", "заняты", "всё сложно"
+]
+const SEX = [
+  "m", "f"
+]
+
+let INSERTS = 0;
+let UPDATES = 0;
 
 const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
         // replicas: [config.mysqlConn, config.mysqlConn],
-        replicas: Array(10).fill(config.mysqlConn),
+        replicas: Array(8).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -85,6 +93,14 @@ function dbmiddle(req, res, next) {
     const now = new Date() / 1000;
     const log = debug.extend('filter');
     
+    if (UPDATES || INSERTS) {
+      UPDATES = 0;
+      const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
+
     const fields = new Set();
     const wheres = [];
     let iSQL = '';
@@ -263,6 +279,14 @@ function dbmiddle(req, res, next) {
   app.get('/accounts/group', async (req, res) => {
     const log = debug.extend('group');
     
+    if (UPDATES || INSERTS) {
+      UPDATES = 0;
+      const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
+
     const q = req.query;
     if (!q.keys) return res.status(400).json([]);
     if (q.likes) return res.status(200).json({groups: []});
@@ -376,6 +400,14 @@ function dbmiddle(req, res, next) {
   app.get('/accounts/:id/recommend', async (req, res) => {
     const log = debug.extend('recommend');
 
+    if (UPDATES || INSERTS) {
+      UPDATES = 0;
+      const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
+
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({});
     if (id > MAX_ID) return res.status(404).json({});
@@ -456,6 +488,14 @@ function dbmiddle(req, res, next) {
 
   app.get('/accounts/:id/suggest', async (req, res) => {
     const log = debug.extend('suggest');
+
+    if (UPDATES || INSERTS) {
+      UPDATES = 0;
+      const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
 
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({});
@@ -544,9 +584,7 @@ function dbmiddle(req, res, next) {
     
     MAX_ID = Math.max(MAX_ID,req.body.id);
     const acc = req.body;
-    if (acc.status) {
-      if (!STATUSES.includes(acc.status)) return res.status(400).json({});
-    }
+    if (acc.status && !STATUSES.includes(acc.status)) return res.status(400).json({});
     
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
@@ -578,11 +616,19 @@ function dbmiddle(req, res, next) {
     }
     // return res.status(201).json({});
 
-    req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params)
+    req.db.queryToMaster(helper.SQL_INSERT_ACCOUNT, params)
       .catch(e => {
         console.log(`NEW_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
       })
+    ++INSERTS;
+    if (INSERTS > 100) {
+      INSERTS = 0;
+      const label = 'NEW_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
     return res.status(201).json({})
     
     if (acc.interests) {
@@ -610,6 +656,23 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/likes', async (req, res) => {
+    const log = debug.extend('likes');
+    log(req.body);
+
+    const likes = req.body.likes;
+    if (!likes) return res.status(400).json({});
+    if (!Array.isArray(likes)) return res.status(400).json({});
+    
+    for (let i = 0, len = likes.length; i < len; i++) {
+      const like = likes[i];
+      if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+      if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
+      if (!Number.isInteger(like.likee)) return res.status(400).json({});
+
+      if (like.liker > MAX_ID) return res.status(400).json({});
+      if (like.likee > MAX_ID) return res.status(400).json({});
+    }
+
     res.status(202).json({});
   });
 
@@ -620,7 +683,7 @@ function dbmiddle(req, res, next) {
     log(req.body);
     
     const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(400).json({});
+    if (!Number.isInteger(id)) return res.status(404).json({});
     
     // console.time('findById');
     let rows = [];
@@ -635,11 +698,10 @@ function dbmiddle(req, res, next) {
     const acc = req.body;
     if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
     if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
+    if (acc.sex && !SEX.includes(acc.sex)) return res.status(400).json({});
 
-    if (acc.status) {
-      if (!STATUSES.includes(acc.status))  return res.status(400).json({});
-    }
-    
+    if (acc.status && !STATUSES.includes(acc.status)) return res.status(400).json({});
+
     if (acc.email) {
       const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
       if (!reEmail.test(acc.email)) return res.status(400).json({});
@@ -650,11 +712,19 @@ function dbmiddle(req, res, next) {
       }
     }
     
-    if (acc.phone) {
-      const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
-      if (!rePhone.test(acc.phone)) return res.status(400).json({});
-    }
+    // if (acc.phone) {
+    //   const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
+    //   if (!rePhone.test(acc.phone)) return res.status(400).json({});
+    // }
     
+    if (acc.likes) {
+      const likes = acc.likes;
+      for (let i = 0, len = likes.length; i < len ;i++) {
+        const like = likes[i];
+        if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+      }
+    }
+
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
     const params = [];
@@ -684,11 +754,19 @@ function dbmiddle(req, res, next) {
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     // return res.status(202).json({});
     log(sql);
-    req.db.queryToReplica(sql, params)
+    req.db.queryToMaster(sql, params)
       .catch(e => {
         console.log(`UPD_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
       });
+    ++UPDATES;
+    if (UPDATES > 100) {
+      UPDATES = 0;
+      const label = 'UPD_COMMIT_' + req.query.query_id;
+      console.time(label);
+      await req.db.queryToMaster('COMMIT;');
+      console.timeEnd(label);
+    }
     return res.status(202).json({});
   });
 
@@ -710,7 +788,7 @@ async function start() {
   // STATUSES = rows.map(r => r.status);
   // rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
   // MAX_ID = rows[0].max_id;
-  STATUSES = ["свободны", "заняты", "всё сложно"];
+  await mysql.queryToMaster('SET autocommit=0;');
   MAX_ID = 30000;
   return;
 }
