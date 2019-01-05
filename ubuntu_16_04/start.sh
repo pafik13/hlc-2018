@@ -15,3 +15,5 @@ docker run -it --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 80:80 re1ax/ubuntu-1
 
 docker rm $(docker ps -a -q)
 docker rmi $(docker images -f "dangling=true" -q)
+
+DEBUG=accounts* ALL=true node --expose-gc boot.js 

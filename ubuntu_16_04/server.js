@@ -14,10 +14,13 @@ const HOST = '0.0.0.0';
 let MAX_ID = 0;
 const STATUSES = [
   "свободны", "заняты", "всё сложно"
-]
+];
 const SEX = [
   "m", "f"
-]
+];
+
+const INTERESTS = {
+};
 
 let INSERTS = 0;
 let UPDATES = 0;
@@ -72,19 +75,21 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/interests', async (req, res) => {
+    const log = debug.extend('interests');
+    
     const q = req.query;
     let sql = "SELECT * FROM accounts_interest LIMIT 30";
     if (q.interests_constains) {
-      const vals = q["interests_constains"].split(',').map(i => `'${i}'`).join(',');
+      const vals = q["interests_constains"].split(',').map(i => INTERESTS[i]).join(',');
       sql = `
-      WITH agg AS (SELECT acc_id, count(*) 
+      SELECT acc_id, count(*) 
         FROM accounts_interest
        WHERE interest IN (${vals})
        GROUP BY acc_id
-       HAVING (count(*) > 0)) 
-      SELECT * FROM agg`;
+       HAVING (count(*) > 0) `;
     }
-
+    
+    log(sql);
     const rows = await req.db.queryToMaster(sql);
     res.json(rows);
   });
@@ -160,7 +165,7 @@ function dbmiddle(req, res, next) {
           case 'interests_contains':
             valArr = val.split(',');
             cnt = valArr.length;
-            vals = valArr.map(i => `'${i}'`).join(',');           
+            vals = valArr.map(i => INTERESTS[i]).join(',');           
             iSQL = `
               SELECT acc_id AS id
                 FROM accounts_interest 
@@ -456,7 +461,6 @@ function dbmiddle(req, res, next) {
           ON accounts.id = i.acc_id
        ORDER BY s_ind, b_diff
        LIMIT ${limit}`;
-    return res.json({"accounts": []});
 
     let rows = [];
     try {
@@ -501,7 +505,7 @@ function dbmiddle(req, res, next) {
     if (!Number.isInteger(id)) return res.status(400).json({});
     if (id > MAX_ID) return res.status(404).json({});
     
- const wheres = [];
+    const wheres = [];
     let limit = 20;
     const q = req.query;
     for (let prop in q) {
@@ -784,12 +788,12 @@ function dbmiddle(req, res, next) {
 })();
 
 async function start() {
-  // let rows = await mysql.queryToMaster('SELECT DISTINCT status as status FROM accounts;');
-  // STATUSES = rows.map(r => r.status);
-  // rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
-  // MAX_ID = rows[0].max_id;
+  let rows = [];
+  rows = await mysql.queryToMaster('SELECT max(id) as max_id FROM accounts;');
+  MAX_ID = rows[0].max_id;
+  rows = await mysql.queryToMaster('SELECT id, name FROM interest;');
+  rows.forEach(i => INTERESTS[i.name] = i.id);
   await mysql.queryToMaster('SET autocommit=0;');
-  MAX_ID = 30000;
   return;
 }
 

@@ -13,6 +13,11 @@ const ALL = Boolean(process.env.ALL) || false;
 const PATH = process.env.DATA_PATH || './data.zip';
 const RE_FILENAME = new RegExp('account(.)+json');
 
+// Dictionaries
+const INTERESTS = {};
+let INTEREST = 0;
+
+
 let PROD = false;
 
 const mysql = new database.mysql({
@@ -29,6 +34,12 @@ function insertEnd() {
   logInsertEnd(`memory (MB): ${process.memoryUsage().rss / 1048576}`);
 }
 
+async function insertDict(objDict, objName) {
+  let params = [];
+  Object.keys(objDict).forEach(key => params.push([objDict[key], key]));
+  await mysql.queryToReplica(helper.func.getDictInsertion(objName), [params]);
+}
+
 (async () => {
 
     const log = debug.extend('main');
@@ -39,10 +50,8 @@ function insertEnd() {
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
-        // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-        // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+        
+        await mysql.queryToMaster(helper.func.getDictCreation('interest'));
     } catch (error) {
         log(error);
     }
@@ -58,8 +67,7 @@ function insertEnd() {
       let i = entries[e];
       if (RE_FILENAME.test(i.entryName)) {
         log(i.entryName);
-        // console.log(i.getData().toString('utf8'));
-        // console.log(JSON.parse(i.getData().toString('utf8')));
+
         const data = JSON.parse(i.getData().toString('utf8'));
         log(Array.isArray(data.accounts));
             
@@ -88,7 +96,10 @@ function insertEnd() {
           // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS, params));
           
           if (acc.interests) {
-              acc.interests.forEach((interest) => interests.push([interest, acc.id]));
+            acc.interests.forEach(interest => {
+              if (!INTERESTS[interest]) INTERESTS[interest] = ++INTEREST;
+              interests.push([INTERESTS[interest], acc.id]);
+            });
           }
           
           // if (acc.likes) {
@@ -96,13 +107,12 @@ function insertEnd() {
           // }
         }
 
-        // inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]).then(insertEnd));
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
         insertEnd();
-        // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]).then(insertEnd));
+        
         // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
         // insertEnd();
-        // inserts.push(mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]).then(insertEnd)); 
+        
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
         insertEnd();
         // await sleep(4000);
@@ -110,64 +120,63 @@ function insertEnd() {
       // global.gc();
     }
 
-    // Promise.all(inserts).then(async () => {
-      console.timeEnd('inserts');
-      
-      console.time('references');
-      try {
-        if (PROD) {
-          await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
-          // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-        }
-      } catch (error) {
-          log(error);
-      }
-      console.timeEnd('references');
-      
-      console.time('indeces');
-      try {
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-          // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
-          await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
-          for (let field of helper.INDECES_SIMPLE_TEST) {
-            await mysql.queryToMaster(helper.func.getIndexCreation([field]));
-          }
-          
-          for (let fields of helper.INDECES_COMPOUND_TEST) {
-            await mysql.queryToMaster(helper.func.getIndexCreation(fields));
-          }
-          
-          if (PROD) {
-            await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS$ACC_ID);
-            
-            for (let field of helper.INDECES_SIMPLE_PROD) {
-              await mysql.queryToMaster(helper.func.getIndexCreation([field]));
-            }   
-            for (let fields of helper.INDECES_COMPOUND_PROD) {
-              await mysql.queryToMaster(helper.func.getIndexCreation(fields));
-            }
-          }
-      } catch (error) {
-          log(error);
-      }
-      console.timeEnd('indeces');
-      
-      console.time('analyze');
-      try {
-          await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
-          await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
-          // await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
-      } catch (error) {
-          log(error);
-      }
-      console.timeEnd('analyze');
-      
-      console.timeEnd('bootstrap');
-      log(`Bootstrap is ended...`);
-      process.exit();
-    // });
+    await insertDict(INTERESTS, 'interest');
 
-    // process.exit();
+    console.timeEnd('inserts');
+    
+    console.time('references');
+    try {
+      if (PROD) {
+        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+      }
+    } catch (error) {
+        log(error);
+    }
+    console.timeEnd('references');
+    
+    console.time('indeces');
+    try {
+      await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
+      // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+      await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
+      for (let field of helper.INDECES_SIMPLE_TEST) {
+        await mysql.queryToMaster(helper.func.getIndexCreation([field]));
+      }
+      
+      for (let fields of helper.INDECES_COMPOUND_TEST) {
+        await mysql.queryToMaster(helper.func.getIndexCreation(fields));
+      }
+      
+      if (PROD) {
+        await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS$ACC_ID);
+        
+        for (let field of helper.INDECES_SIMPLE_PROD) {
+          await mysql.queryToMaster(helper.func.getIndexCreation([field]));
+        }   
+        for (let fields of helper.INDECES_COMPOUND_PROD) {
+          await mysql.queryToMaster(helper.func.getIndexCreation(fields));
+        }
+      }
+    } catch (error) {
+      log(error);
+    }
+    console.timeEnd('indeces');
+    
+    console.time('analyze');
+    try {
+      await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
+      await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
+      // await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
+    } catch (error) {
+      log(error);
+    }
+    console.timeEnd('analyze');
+    
+    console.timeEnd('bootstrap');
+    log(`Bootstrap is ended...`);
+    process.exit();
+
 })();
 
 function sleep(ms){

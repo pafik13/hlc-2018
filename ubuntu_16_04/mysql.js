@@ -33,19 +33,23 @@ class MySQL {
                 }
                 resolve();
             } catch (e) {
-                reject(e)
+                reject(e);
             }
         });
     }
 
     queryToReplica(query, params) {
         if (!this.config.mysqlReplication) {
-            return this.queryToMaster(query, params)
+            return this.queryToMaster(query, params);
         } else {
             return new Promise((resolve, reject) => {
                 this.pool.getConnection('SLAVE*', 'ORDER', (err, conn) => {
                     if (err) return reject(err);
-                    conn.query(query, params, (err, res) => {
+                    conn.query({
+                        sql : query,
+                        timeout: 100,
+                        values: params
+                    }, (err, res) => {
                         if (err) reject(err);
                         else resolve(res);
                     });
@@ -59,12 +63,15 @@ class MySQL {
         return new Promise((resolve, reject) => {
             this.pool.getConnection('MASTER', (err, conn) => {
                 if (err) return reject(err);
-                conn.query(query, params, (err, res) => {
+                conn.query({
+                    sql : query,
+                    timeout: 100,
+                    values: params
+                }, (err, res) => {
                     if (err) reject(err);
                     else resolve(res);
                 });
                 conn.release();
-                // this.pool.releaseConnection(conn);
             });
         });
     }

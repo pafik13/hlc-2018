@@ -50,8 +50,7 @@ const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes
 
 const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
-  ( id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , interest varchar(100)
+  ( interest TINYINT UNSIGNED
   , acc_id integer
   )`;
 
@@ -138,6 +137,27 @@ function getIndexCreation(fields = []) {
   return cmd;
 }
 
+function getDictCreation(tableName) {
+  const log = debug.extend('getDictCreation');
+
+  if (!tableName) throw new Error('Empty tableName');
+  const cmd = `CREATE TABLE ${tableName} 
+    ( id TINYINT UNSIGNED
+    , name VARCHAR(50)
+    );`;
+  log(cmd);
+  return cmd;
+}
+
+function getDictInsertion(tableName) {
+  const log = debug.extend('getDictInsertion');
+
+  if (!tableName) throw new Error('Empty tableName');
+  const cmd = `INSERT INTO ${tableName} (id, name) VALUES ?`;
+  log(cmd);
+  return cmd;
+}
+
 module.exports = exports = {
     SQL_CREATE_ACCOUNTS,
     SQL_INSERT_ACCOUNTS,
@@ -165,6 +185,8 @@ module.exports = exports = {
     INDECES_COMPOUND_TEST,
     INDECES_COMPOUND_PROD,
     func: {
-      getIndexCreation
+      getIndexCreation,
+      getDictCreation,
+      getDictInsertion
     }
 };
