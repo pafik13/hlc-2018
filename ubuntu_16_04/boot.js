@@ -126,10 +126,11 @@ async function insertDict(objDict, objName) {
     
     console.time('references');
     try {
-      if (PROD) {
-        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_INTEREST);
+      // if (PROD) {
+        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
+        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
         // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-      }
+      // }
     } catch (error) {
         log(error);
     }
