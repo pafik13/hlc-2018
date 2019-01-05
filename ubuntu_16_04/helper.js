@@ -106,8 +106,7 @@ const GROUP_FILTER_FIELDS = [
 
 
 const INDECES_SIMPLE_TEST = [
-  'status', 'sex', 'city', 'country', 
-  'premium',  'joined', 'birth'
+  'status', 'city', 'country', 'birth'
 ];
 
 const INDECES_SIMPLE_PROD = [
