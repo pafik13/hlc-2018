@@ -118,6 +118,7 @@ const INDECES_SIMPLE_PROD = [
 ];
 
 const INDECES_COMPOUND_TEST = [
+  ['city', 'sex'], ['country', 'sex'], ['status', 'sex']
 ];
 
 const INDECES_COMPOUND_PROD = [
