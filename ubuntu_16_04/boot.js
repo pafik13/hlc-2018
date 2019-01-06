@@ -47,6 +47,9 @@ async function insertDict(objDict, objName) {
     await mysql.connect(); // MYSQL
     log('Connected');
     try {
+        await mysql.queryToMaster(helper.SQL_TMP_TABLE_SIZE);
+        await mysql.queryToMaster(helper.SQL_HEAP_TABLE_SIZE);
+
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
@@ -59,7 +62,6 @@ async function insertDict(objDict, objName) {
     const entries = zip.getEntries();
     log(`entries.length = ${entries.length}`);
     console.time('inserts');
-    const inserts = [];
     PROD = entries.length > 3;
     for(let e = 0, len = entries.length; e < len; e++) {
       log(`iteration: ${e}`);
@@ -103,18 +105,20 @@ async function insertDict(objDict, objName) {
           }
           
           // if (acc.likes) {
-          //     acc.likes.map((like) => likes.push([like.id, like.ts, acc.id]));
+          //     acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
           // }
         }
 
-        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
-        insertEnd();
-        
         // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+        // insertEnd();
+        
+        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
         // insertEnd();
         
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
         insertEnd();
+        
+
         // await sleep(4000);
       }
       // global.gc();

@@ -29,7 +29,7 @@ const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
         // replicas: [config.mysqlConn, config.mysqlConn],
-        replicas: Array(8).fill(config.mysqlConn),
+        replicas: Array(10).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -229,7 +229,7 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-
+    
     fields.add('email');
     fields.add('id');
     let unique = [...fields];
@@ -437,7 +437,7 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-    return res.json({"accounts": []});
+    // return res.json({"accounts": []});
 
     wheres.push(`acc.sex != (select sex from accounts where id = ${id})`);
     wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
@@ -480,6 +480,9 @@ function dbmiddle(req, res, next) {
         }
         delete row.pstart;
         delete row.pfinish;
+        delete row.s_ind;
+        delete row.cnt;
+        delete row.b_diff;
         return row;
       });
     }
@@ -578,7 +581,7 @@ function dbmiddle(req, res, next) {
         console.error(e.code + ': ' + e.errno);
       })
     ++INSERTS;
-    if (INSERTS > 100) {
+    if (INSERTS > 30) {
       INSERTS = 0;
       const label = 'NEW_COMMIT_' + req.query.query_id;
       console.time(label);
@@ -716,7 +719,7 @@ function dbmiddle(req, res, next) {
         console.error(e.code + ': ' + e.errno);
       });
     ++UPDATES;
-    if (UPDATES > 100) {
+    if (UPDATES > 30) {
       UPDATES = 0;
       const label = 'UPD_COMMIT_' + req.query.query_id;
       console.time(label);
