@@ -1,8 +1,11 @@
 const debug = require('debug')('accounts:helper');
 
+const SQL_TMP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 256;';
+const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 256;';
+
 const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
-  ( id INTEGER PRIMARY KEY AUTO_INCREMENT
+  ( id BIT(18) PRIMARY KEY
   , email varchar(100), fname varchar(50)
   , sname varchar(50), status varchar(50)
   , country varchar(50), city varchar(50)
@@ -10,7 +13,7 @@ const SQL_CREATE_ACCOUNTS =
   , joined integer, birth integer
   , premium integer
   , pstart integer, pfinish integer
-  )`;
+  ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS =
   `INSERT INTO accounts
@@ -33,11 +36,10 @@ const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
 
 const SQL_CREATE_ACCOUNTS_LIKE =
 `CREATE TABLE accounts_like
-  ( id INTEGER PRIMARY KEY AUTO_INCREMENT
-  , like_id integer
+  ( like_id bit(18)
   , like_ts integer
-  , acc_id integer
-  )`;
+  , acc_id bit(18)
+  ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_LIKE =
   `INSERT INTO accounts_like
@@ -52,7 +54,7 @@ const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( interest TINYINT UNSIGNED
   , acc_id integer
-  )`;
+  ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_INTEREST =
 `INSERT INTO accounts_interest
@@ -113,15 +115,15 @@ const INDECES_SIMPLE_PROD = [
 ];
 
 const INDECES_COMPOUND_TEST = [
-  ['pstart', 'pfinish']
+  ['city', 'sex'], ['country', 'sex'], ['status', 'sex']
 ];
 
 const INDECES_COMPOUND_PROD = [
-  ['birth', 'country'], ['status', 'sex'], 
-  ['country', 'status'], ['country', 'sex'], 
+  ['birth', 'country'], 
+  ['country', 'status'],  
   ['country', 'status', 'sex'],
   ['birth', 'country', 'status'],
-  ['city', 'status'], ['city', 'sex'],
+  ['city', 'status'],
   ['city', 'status', 'sex'],
   ['birth', 'city', 'status'],
   ['joined', 'city', 'status']
@@ -144,7 +146,7 @@ function getDictCreation(tableName) {
   const cmd = `CREATE TABLE ${tableName} 
     ( id TINYINT UNSIGNED
     , name VARCHAR(50)
-    );`;
+    ) ENGINE=MEMORY;`;
   log(cmd);
   return cmd;
 }
@@ -159,6 +161,8 @@ function getDictInsertion(tableName) {
 }
 
 module.exports = exports = {
+    SQL_TMP_TABLE_SIZE,
+    SQL_HEAP_TABLE_SIZE,
     SQL_CREATE_ACCOUNTS,
     SQL_INSERT_ACCOUNTS,
     SQL_INSERT_ACCOUNT,
