@@ -1,11 +1,11 @@
 const debug = require('debug')('accounts:helper');
 
 const SQL_TMP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 256;';
-const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 256;';
+const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL max_heap_table_size = 1024 * 1024 * 256;';
 
 const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
-  ( id BIT(18) PRIMARY KEY
+  ( id MEDIUMINT UNSIGNED PRIMARY KEY
   , email varchar(100), fname varchar(50)
   , sname varchar(50), status varchar(50)
   , country varchar(50), city varchar(50)
@@ -36,9 +36,9 @@ const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
 
 const SQL_CREATE_ACCOUNTS_LIKE =
 `CREATE TABLE accounts_like
-  ( like_id bit(18)
+  ( like_id MEDIUMINT UNSIGNED
   , like_ts integer
-  , acc_id bit(18)
+  , acc_id MEDIUMINT UNSIGNED
   ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_LIKE =
@@ -53,7 +53,7 @@ const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes
 const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( interest TINYINT UNSIGNED
-  , acc_id integer
+  , acc_id MEDIUMINT UNSIGNED
   ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_INTEREST =

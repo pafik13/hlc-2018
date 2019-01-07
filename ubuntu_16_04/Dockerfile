@@ -7,6 +7,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y install mysql-server
 RUN usermod -d /var/lib/mysql/ mysql
 RUN chown -R mysql:mysql /var/lib/mysql
 
+# Install UnZip
+RUN apt-get install unzip
+
 # # Install NodeJS
 # ENV NODE_VERSION 9.11.2
 RUN apt-get -y install curl
@@ -46,7 +49,7 @@ ENV PORT=80
 ENV NODE_ENV=production
 ENV ALL=true
 ENV MYSQL_USER=root
-# ENV DEBUG=accounts:boot*
+ENV DEBUG=accounts:boot*
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -55,8 +58,10 @@ RUN npm install
 COPY *.js ./
 COPY *.json ./
 
+
 # Start MySQL
-ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
+ENV INIT_DB="CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;SET GLOBAL max_heap_table_size = 1024 * 1024 * 256;SET GLOBAL tmp_table_size = 1024 * 1024 * 256;"
+ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "${INIT_DB}" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
 
 EXPOSE 80
 # CMD [ "npm", "start" ]

@@ -17,3 +17,6 @@ docker rm $(docker ps -a -q)
 docker rmi $(docker images -f "dangling=true" -q)
 
 DEBUG=accounts* ALL=true node --expose-gc boot.js 
+
+
+&& unzip /tmp/data/data.zip 

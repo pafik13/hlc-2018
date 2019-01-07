@@ -76,7 +76,7 @@ async function insertDict(objDict, objName) {
         const lenAccs = ALL ? data.accounts.length : 100;
         log(lenAccs);
         const accounts = [];
-        // const likes = [];
+        const likes = [];
         const interests = [];
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
@@ -104,13 +104,13 @@ async function insertDict(objDict, objName) {
             });
           }
           
-          // if (acc.likes) {
-          //     acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
-          // }
+          if (acc.likes) {
+              acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
+          }
         }
 
-        // await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
-        // insertEnd();
+        await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+        insertEnd();
         
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
         // insertEnd();
@@ -133,7 +133,7 @@ async function insertDict(objDict, objName) {
       // if (PROD) {
         await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
         await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
       // }
     } catch (error) {
         log(error);
@@ -143,7 +143,7 @@ async function insertDict(objDict, objName) {
     console.time('indeces');
     try {
       await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-      // await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
+      await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
       await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
       for (let field of helper.INDECES_SIMPLE_TEST) {
         await mysql.queryToMaster(helper.func.getIndexCreation([field]));
@@ -172,7 +172,7 @@ async function insertDict(objDict, objName) {
     try {
       await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
       await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
-      // await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
+      await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
     } catch (error) {
       log(error);
     }
