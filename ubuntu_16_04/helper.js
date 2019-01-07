@@ -1,15 +1,15 @@
 const debug = require('debug')('accounts:helper');
 
-const SQL_TMP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 256;';
-const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL max_heap_table_size = 1024 * 1024 * 256;';
+const SQL_TMP_TABLE_SIZE = 'SET GLOBAL tmp_table_size = 1024 * 1024 * 1024;';
+const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL max_heap_table_size = 1024 * 1024 * 1024;';
 
 const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
   ( id MEDIUMINT UNSIGNED PRIMARY KEY
-  , email varchar(100), fname varchar(50)
-  , sname varchar(50), status varchar(50)
-  , country varchar(50), city varchar(50)
-  , phone varchar(16), sex char(1)
+  , email varchar(50), fname SMALLINT UNSIGNED
+  , sname SMALLINT UNSIGNED, status TINYINT(2) UNSIGNED
+  , country TINYINT UNSIGNED, city TINYINT UNSIGNED
+  , phone varchar(16), sex BOOLEAN
   , joined integer, birth integer
   , premium integer
   , pstart integer, pfinish integer
@@ -36,14 +36,13 @@ const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
 
 const SQL_CREATE_ACCOUNTS_LIKE =
 `CREATE TABLE accounts_like
-  ( like_id MEDIUMINT UNSIGNED
-  , like_ts integer
-  , acc_id MEDIUMINT UNSIGNED
+  ( like_id MEDIUMINT UNSIGNED NOT NULL
+  , acc_id MEDIUMINT UNSIGNED NOT NULL
   ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_LIKE =
   `INSERT INTO accounts_like
-    ( like_id, like_ts, acc_id)
+    ( like_id, acc_id)
    VALUES ?`;
    
 const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes 
@@ -53,7 +52,7 @@ const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes
 const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( interest TINYINT UNSIGNED
-  , acc_id MEDIUMINT UNSIGNED
+  , acc_id BIT(18) NOT NULL
   ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_INTEREST =
@@ -142,14 +141,14 @@ function getIndexCreation(fields = []) {
   return cmd;
 }
 
-function getDictCreation(tableName) {
+function getDictCreation(tableName, idType = 'TINYINT') {
   const log = debug.extend('getDictCreation');
 
   if (!tableName) throw new Error('Empty tableName');
   const cmd = `CREATE TABLE ${tableName} 
-    ( id TINYINT UNSIGNED
+    ( id ${idType} UNSIGNED
     , name VARCHAR(50)
-    ) ENGINE=MEMORY;`;
+    );`;
   log(cmd);
   return cmd;
 }

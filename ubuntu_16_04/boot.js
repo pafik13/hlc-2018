@@ -17,6 +17,29 @@ const RE_FILENAME = new RegExp('account(.)+json');
 const INTERESTS = {};
 let INTEREST = 0;
 
+const COUNTRIES = {};
+let COUNTRY = 0;
+
+const CITIES = {};
+let CITY = 0;
+
+const FNAMES = {};
+let FNAME = 0;
+
+const SNAMES = {};
+let SNAME = 0;
+
+const STATUSES = {
+  "свободны": 1,
+  "заняты": 2,
+  "всё сложно": 3
+};
+
+const SEX = {
+  "m": 1,
+  "f": 0
+};
+
 
 let PROD = false;
 
@@ -54,6 +77,10 @@ async function insertDict(objDict, objName) {
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
         
+        await mysql.queryToMaster(helper.func.getDictCreation('fname', 'SMALLINT'));
+        await mysql.queryToMaster(helper.func.getDictCreation('sname', 'SMALLINT'));
+        await mysql.queryToMaster(helper.func.getDictCreation('country'));
+        await mysql.queryToMaster(helper.func.getDictCreation('city'));
         await mysql.queryToMaster(helper.func.getDictCreation('interest'));
     } catch (error) {
         log(error);
@@ -80,17 +107,41 @@ async function insertDict(objDict, objName) {
         const interests = [];
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
+          if (acc.country){
+            if (!COUNTRIES[acc.country]) {
+              COUNTRIES[acc.country] = ++COUNTRY;
+            }
+          }
+          
+          if (acc.city){
+            if (!CITIES[acc.city]) {
+              CITIES[acc.city] = ++CITY;
+            }
+          }
+          
+          if (acc.fname){
+            if (!FNAMES[acc.city]) {
+              FNAMES[acc.city] = ++FNAME;
+            }
+          }
+          
+          if (acc.sname){
+            if (!SNAMES[acc.city]) {
+              SNAMES[acc.city] = ++SNAME;
+            }
+          }
+          
           let params = [];
           if (acc.premium) {
             params = [
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
+              COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
               acc.birth, 1, acc.premium.start, acc.premium.finish
             ];
           } else {
             params = [
-              acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-              acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+              acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
+              COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
               acc.birth, null, null, null
             ];            
           }
@@ -105,7 +156,7 @@ async function insertDict(objDict, objName) {
           }
           
           if (acc.likes) {
-              acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
+              acc.likes.forEach((like) => likes.push([like.id, acc.id]));
           }
         }
 
@@ -123,17 +174,22 @@ async function insertDict(objDict, objName) {
       }
       // global.gc();
     }
-
+    
+    await insertDict(FNAMES, 'fname');
+    await insertDict(SNAMES, 'sname');
+    await insertDict(COUNTRIES, 'country');
+    await insertDict(CITIES, 'city');
     await insertDict(INTERESTS, 'interest');
 
     console.timeEnd('inserts');
     
     console.time('references');
     try {
+      null;
       // if (PROD) {
-        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
-        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
-        await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
+        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
       // }
     } catch (error) {
         log(error);

@@ -177,7 +177,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
-            return res.status(200).json({accounts: []});
+            // return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
