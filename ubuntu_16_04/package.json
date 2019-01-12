@@ -10,8 +10,11 @@
   "dependencies": {
     "adm-zip": "^0.4.11",
     "body-parser": "^1.18.3",
+    "csv-writer": "^1.2.0",
     "debug": "^4.1.1",
     "express": "^4.16.1",
+    "generic-pool": "^3.4.2",
+    "monetdb": "^1.1.4",
     "mysql2": "^1.5.1",
     "sqlite3": "^4.0.4"
   }

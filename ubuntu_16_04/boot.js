@@ -1,11 +1,19 @@
 console.time('bootstrap');
 
 const debug = require('debug')('accounts:boot');
+const monetLog = debug.extend('monetdb');
+const { createArrayCsvWriter } = require('csv-writer');
+const MDB = require('monetdb')();
+
 const AdmZip = require('adm-zip');
 
 const database = require('./mysql');
 const helper = require('./helper');
 const config = require('./config');
+
+const TEMP_CSV_FILE = '/tmp/likes.csv';
+const IS_LOAD_TO_MONETDB = false;
+const monet = new MDB(config.monetConn);
 
 const ALL = Boolean(process.env.ALL) || false;
 // const PATH = process.env.DATA_PATH || './node_9_11_2/data.zip';
@@ -68,20 +76,21 @@ async function insertDict(objDict, objName) {
     const log = debug.extend('main');
     log('Try to connect');
     await mysql.connect(); // MYSQL
+    await monet.connect(); // MonetDB
     log('Connected');
     try {
         await mysql.queryToMaster(helper.SQL_TMP_TABLE_SIZE);
         await mysql.queryToMaster(helper.SQL_HEAP_TABLE_SIZE);
 
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS);
-        await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_LIKE);
         await mysql.queryToMaster(helper.SQL_CREATE_ACCOUNTS_INTEREST);
         
         await mysql.queryToMaster(helper.func.getDictCreation('fname', 'SMALLINT'));
         await mysql.queryToMaster(helper.func.getDictCreation('sname', 'SMALLINT'));
         await mysql.queryToMaster(helper.func.getDictCreation('country'));
-        await mysql.queryToMaster(helper.func.getDictCreation('city'));
+        await mysql.queryToMaster(helper.func.getDictCreation('city', 'SMALLINT'));
         await mysql.queryToMaster(helper.func.getDictCreation('interest'));
+        await mysql.queryToMaster(helper.func.getDictCreation('status'));
     } catch (error) {
         log(error);
     }
@@ -105,6 +114,10 @@ async function insertDict(objDict, objName) {
         const accounts = [];
         const likes = [];
         const interests = [];
+        const csvWriter = createArrayCsvWriter({
+            header: ['likee', 'liker', 'ts', 'country', 'city', 'sex'],
+            path: TEMP_CSV_FILE
+        });
         for (let i = 0; i < lenAccs; i++) {
           const acc = data.accounts[i];
           if (acc.country){
@@ -120,14 +133,14 @@ async function insertDict(objDict, objName) {
           }
           
           if (acc.fname){
-            if (!FNAMES[acc.city]) {
-              FNAMES[acc.city] = ++FNAME;
+            if (!FNAMES[acc.fname]) {
+              FNAMES[acc.fname] = ++FNAME;
             }
           }
           
           if (acc.sname){
-            if (!SNAMES[acc.city]) {
-              SNAMES[acc.city] = ++SNAME;
+            if (!SNAMES[acc.sname]) {
+              SNAMES[acc.sname] = ++SNAME;
             }
           }
           
@@ -146,8 +159,7 @@ async function insertDict(objDict, objName) {
             ];            
           }
           accounts.push(params);
-          // inserts.push(mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS, params));
-          
+
           if (acc.interests) {
             acc.interests.forEach(interest => {
               if (!INTERESTS[interest]) INTERESTS[interest] = ++INTEREST;
@@ -156,23 +168,32 @@ async function insertDict(objDict, objName) {
           }
           
           if (acc.likes) {
-              acc.likes.forEach((like) => likes.push([like.id, acc.id]));
+            acc.likes.forEach((like) => likes.push([
+              like.id, acc.id, like.ts, 
+              Boolean(acc.country) ? COUNTRIES[acc.country] : 0,
+              Boolean(acc.city) ? CITIES[acc.city] : 0,
+              Boolean(SEX[acc.sex])
+            ]));
           }
         }
-
-        await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
-        insertEnd();
+        
+        if (IS_LOAD_TO_MONETDB) {
+          monetLog(`likes.length=${likes.length}`);
+          const sql = `COPY OFFSET 6 INTO likes FROM '${TEMP_CSV_FILE}' USING  DELIMITERS ',';`;
+          console.time('write');
+          await csvWriter.writeRecords(likes);      // returns a promise
+          console.timeEnd('write');
+          const res = await monet.query(sql);
+          monetLog(res);
+          insertEnd();
+        }
         
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
         // insertEnd();
         
         await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
         insertEnd();
-        
-
-        // await sleep(4000);
       }
-      // global.gc();
     }
     
     await insertDict(FNAMES, 'fname');
@@ -180,26 +201,28 @@ async function insertDict(objDict, objName) {
     await insertDict(COUNTRIES, 'country');
     await insertDict(CITIES, 'city');
     await insertDict(INTERESTS, 'interest');
-
+    await insertDict(STATUSES, 'status');
+    
     console.timeEnd('inserts');
     
     console.time('references');
     try {
-      null;
-      // if (PROD) {
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
-        // await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_LIKE);
-      // }
+      await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
+      await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
+      
+      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'fname'));
+      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'sname'));
+      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'city'));
+      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'country'));
+      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'status'));
     } catch (error) {
-        log(error);
+      log(error);
     }
     console.timeEnd('references');
     
     console.time('indeces');
     try {
       await mysql.queryToMaster(helper.SQL_CREATE_INDEX_INTERESTS);
-      await mysql.queryToMaster(helper.SQL_CREATE_INDEX_LIKES);
       await mysql.queryToMaster(helper.SQL_CREATE_INDEX_EMAIL);
       for (let field of helper.INDECES_SIMPLE_TEST) {
         await mysql.queryToMaster(helper.func.getIndexCreation([field]));
@@ -228,7 +251,6 @@ async function insertDict(objDict, objName) {
     try {
       await mysql.queryToMaster(helper.SQL_ANALYZE_ACCOUNTS);
       await mysql.queryToMaster(helper.SQL_ANALYZE_INTEREST);
-      await mysql.queryToMaster(helper.SQL_ANALYZE_LIKE);
     } catch (error) {
       log(error);
     }

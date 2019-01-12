@@ -6,14 +6,14 @@ const SQL_HEAP_TABLE_SIZE = 'SET GLOBAL max_heap_table_size = 1024 * 1024 * 1024
 const SQL_CREATE_ACCOUNTS =
 `CREATE TABLE accounts
   ( id MEDIUMINT UNSIGNED PRIMARY KEY
-  , email varchar(50), fname SMALLINT UNSIGNED
-  , sname SMALLINT UNSIGNED, status TINYINT(2) UNSIGNED
-  , country TINYINT UNSIGNED, city TINYINT UNSIGNED
+  , email varchar(50) NOT NULL, fname SMALLINT UNSIGNED
+  , sname SMALLINT UNSIGNED, status TINYINT(2) UNSIGNED NOT NULL
+  , country TINYINT UNSIGNED, city SMALLINT UNSIGNED
   , phone varchar(16), sex BOOLEAN
-  , joined integer, birth integer
-  , premium integer
+  , joined integer NOT NULL, birth integer
+  , premium BOOLEAN
   , pstart integer, pfinish integer
-  ) ENGINE=MEMORY`;
+  )`;
 
 const SQL_INSERT_ACCOUNTS =
   `INSERT INTO accounts
@@ -35,25 +35,25 @@ const SQL_CREATE_INDEX_EMAIL = `CREATE UNIQUE INDEX ix_email
 
 
 const SQL_CREATE_ACCOUNTS_LIKE =
-`CREATE TABLE accounts_like
-  ( like_id MEDIUMINT UNSIGNED NOT NULL
-  , acc_id MEDIUMINT UNSIGNED NOT NULL
-  ) ENGINE=MEMORY`;
+`CREATE TABLE likes
+  ( likee MEDIUMINT UNSIGNED NOT NULL
+  , liker MEDIUMINT UNSIGNED NOT NULL
+  )`;
 
 const SQL_INSERT_ACCOUNTS_LIKE =
-  `INSERT INTO accounts_like
-    ( like_id, acc_id)
+  `INSERT INTO likes
+    ( likee, liker)
    VALUES ?`;
    
 const SQL_CREATE_INDEX_LIKES = `CREATE INDEX ix_likes 
-  ON accounts_like(like_id, acc_id);`;
+  ON likes(likee, liker);`;
 
 
 const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( interest TINYINT UNSIGNED
-  , acc_id BIT(18) NOT NULL
-  ) ENGINE=MEMORY`;
+  , acc_id MEDIUMINT UNSIGNED NOT NULL
+  )`;
 
 const SQL_INSERT_ACCOUNTS_INTEREST =
 `INSERT INTO accounts_interest
@@ -72,13 +72,13 @@ const SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID = ` ALTER TABLE accounts_interest
 const SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST = ` ALTER TABLE accounts_interest 
   ADD CONSTRAINT fk_ai$interest FOREIGN KEY (interest) REFERENCES interest(id);`;
 
-const SQL_ADD_REF_KEY_LIKE= ` ALTER TABLE accounts_like
-  ADD CONSTRAINT fk_al$acc_id FOREIGN KEY (acc_id) REFERENCES accounts(id);`;
+const SQL_ADD_REF_KEY_LIKE= ` ALTER TABLE likes
+  ADD CONSTRAINT liker FOREIGN KEY (liker) REFERENCES accounts(id);`;
 
 
 const SQL_ANALYZE_ACCOUNTS = 'ANALYZE TABLE accounts';
 const SQL_ANALYZE_INTEREST = 'ANALYZE TABLE accounts_interest';
-const SQL_ANALYZE_LIKE     = 'ANALYZE TABLE accounts_like';
+const SQL_ANALYZE_LIKE     = 'ANALYZE TABLE likes';
 
 
 const FILTERED_SIMPLE_FIELDS = [
@@ -146,7 +146,7 @@ function getDictCreation(tableName, idType = 'TINYINT') {
 
   if (!tableName) throw new Error('Empty tableName');
   const cmd = `CREATE TABLE ${tableName} 
-    ( id ${idType} UNSIGNED
+    ( id ${idType} UNSIGNED PRIMARY KEY
     , name VARCHAR(50)
     );`;
   log(cmd);
@@ -158,6 +158,19 @@ function getDictInsertion(tableName) {
 
   if (!tableName) throw new Error('Empty tableName');
   const cmd = `INSERT INTO ${tableName} (id, name) VALUES ?`;
+  log(cmd);
+  return cmd;
+}
+
+function getDictRefference(tableName, colName, dictName) {
+  const log = debug.extend('getDictRefference');
+
+  if (!tableName) throw new Error('Empty tableName');
+  if (!colName) throw new Error('Empty tableName');
+  const dict = dictName ? dictName : colName;
+
+  const cmd = `ALTER TABLE ${tableName} ADD CONSTRAINT ref_${tableName}$${colName} 
+    FOREIGN KEY (${colName}) REFERENCES ${dict}(id);`;
   log(cmd);
   return cmd;
 }
@@ -194,6 +207,7 @@ module.exports = exports = {
     func: {
       getIndexCreation,
       getDictCreation,
-      getDictInsertion
+      getDictInsertion,
+      getDictRefference
     }
 };

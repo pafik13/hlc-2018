@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const database = require('./mysql');
 const helper = require('./helper');
 const config = require('./config');
+const monet = require('./monet.js');
 
 // Constants
 const PORT = process.env.PORT || 8080;
@@ -20,6 +21,10 @@ const SEX = [
 ];
 
 const INTERESTS = {
+};
+const COUNTRIES = {
+};
+const CITIES = {
 };
 
 let INSERTS = 0;
@@ -507,7 +512,7 @@ function dbmiddle(req, res, next) {
     if (!Number.isInteger(id)) return res.status(400).json({});
     if (id > MAX_ID) return res.status(404).json({});
     
-    const wheres = [];
+    let sql = false;
     let limit = 20;
     const q = req.query;
     for (let prop in q) {
@@ -524,14 +529,47 @@ function dbmiddle(req, res, next) {
           case 'city':
           case 'country':
             if (!val) return res.status(400).json([]);
-            wheres.push(`${prop} = '${val}'`);
+            switch (prop) {
+              case 'city':
+                sql = `select * from similarity_in_city(${id}, ${CITIES[val]})`; break;
+              case 'country':
+                sql = `select * from similarity_in_ctry(${id}, ${COUNTRIES[val]})`; break;
+            }
             break;
           default:
             return res.status(400).json([]);
         }
       }
     }
-    return res.json({"accounts": []});
+    sql = `${sql} limit ${limit};`;
+    log(sql);
+    let rows = await monet.queryAsync(sql);
+    log(rows.data);
+    if (!rows.data.length) res.json({"accounts": []});
+    const ids = rows.data.map(r => r[2]).join(',');
+    sql = `SELECT f.name as fname, a.email, st.name, a.id, s.name as sname
+      FROM accounts a
+      JOIN status st
+        ON a.status = st.id
+      LEFT
+      JOIN fname    f
+        ON a.fname = f.id
+      LEFT
+      JOIN sname    s
+        ON a.sname = s.id
+     WHERE a.id IN (${ids}) 
+     ORDER BY id DESC`;
+    log(sql);
+    rows = await mysql.queryToReplica(sql);
+    const keys = ['fname', 'email', 'status', 'sname'];
+    if (rows.length) {
+      rows.forEach(row => {
+        keys.forEach(k => {
+          if (!row[k]) delete row[k];
+        });
+      });
+    }
+    return res.json({"accounts": rows});
   });
 
   app.post('/accounts/new', async (req, res) => {
@@ -748,6 +786,10 @@ async function start() {
   MAX_ID = rows[0].max_id;
   rows = await mysql.queryToMaster('SELECT id, name FROM interest;');
   rows.forEach(i => INTERESTS[i.name] = i.id);
+  rows = await mysql.queryToMaster('SELECT id, name FROM country;');
+  rows.forEach(i => COUNTRIES[i.name] = i.id);
+  rows = await mysql.queryToMaster('SELECT id, name FROM city;');
+  rows.forEach(i => CITIES[i.name] = i.id);
   await mysql.queryToMaster('SET autocommit=0;');
   return;
 }
