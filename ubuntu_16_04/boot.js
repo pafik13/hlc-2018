@@ -12,7 +12,7 @@ const helper = require('./helper');
 const config = require('./config');
 
 const TEMP_CSV_FILE = '/tmp/likes.csv';
-const IS_LOAD_TO_MONETDB = false;
+const IS_LOAD_TO_MONETDB = Boolean(process.env.IS_LOAD_TO_MONETDB) || false;;
 const monet = new MDB(config.monetConn);
 
 const ALL = Boolean(process.env.ALL) || false;
@@ -188,36 +188,23 @@ async function insertDict(objDict, objName) {
           insertEnd();
         }
         
-        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
+        const a = mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS, [accounts]);
         // insertEnd();
         
-        await mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        const ai = mysql.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        await Promise.all([a, ai]);
         insertEnd();
       }
     }
     
-    await insertDict(FNAMES, 'fname');
-    await insertDict(SNAMES, 'sname');
-    await insertDict(COUNTRIES, 'country');
-    await insertDict(CITIES, 'city');
-    await insertDict(INTERESTS, 'interest');
-    await insertDict(STATUSES, 'status');
+    await Promise.all([
+      insertDict(FNAMES, 'fname'), insertDict(SNAMES, 'sname'), insertDict(COUNTRIES, 'country'),
+      insertDict(CITIES, 'city'), insertDict(INTERESTS, 'interest'), insertDict(STATUSES, 'status')
+    ]);
     
     console.timeEnd('inserts');
     
     console.time('references');
-    try {
-      await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$ACC_ID);
-      await mysql.queryToMaster(helper.SQL_ADD_REF_KEY_ACCOUNTS_INTEREST$INTEREST);
-      
-      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'fname'));
-      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'sname'));
-      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'city'));
-      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'country'));
-      await mysql.queryToMaster(helper.func.getDictRefference('accounts', 'status'));
-    } catch (error) {
-      log(error);
-    }
     console.timeEnd('references');
     
     console.time('indeces');
