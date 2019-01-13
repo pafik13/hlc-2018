@@ -13,19 +13,21 @@ const monet = require('./monet.js');
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
 let MAX_ID = 0;
-const STATUSES = [
-  "свободны", "заняты", "всё сложно"
-];
-const SEX = [
-  "m", "f"
-];
+const STATUSES = {
+  "свободны": 1,
+  "заняты": 2,
+  "всё сложно": 3
+};
+const SEX = {
+  "m": 1,
+  "f": 0
+};
 
-const INTERESTS = {
-};
-const COUNTRIES = {
-};
-const CITIES = {
-};
+const INTERESTS = {};
+const COUNTRIES = {};
+const CITIES = {};
+const FNAMES = {};
+const SNAMES = {};
 
 let INSERTS = 0;
 let UPDATES = 0;
@@ -356,7 +358,18 @@ function dbmiddle(req, res, next) {
             break;
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
-              wheres.push(`${prop} = '${val}'`);
+              switch (prop) {
+                case 'city':
+                  wheres.push(`${prop} = '${CITIES[val]}'`); break;
+                case 'country':
+                  wheres.push(`${prop} = '${COUNTRIES[val]}'`); break;
+                case 'fname':
+                  wheres.push(`${prop} = '${FNAMES[val]}'`); break;
+                case 'sname':
+                  wheres.push(`${prop} = '${SNAMES[val]}'`); break;
+                default:
+                  wheres.push(`${prop} = '${val}'`);
+              }
             } else {
               return res.status(400).json([]);
             }
@@ -395,7 +408,22 @@ function dbmiddle(req, res, next) {
     if (rows.length) {
       rows.forEach(row => {
         keys.forEach(k => {
-          if (!row[k]) delete row[k];
+          if (!row[k]) {
+            delete row[k];
+          } else {
+            switch (k) {
+              case 'city':
+              row[k] = CITIES[val];
+              case 'country':
+                wheres.push(`${prop} = '${COUNTRIES[val]}'`); break;
+              case 'fname':
+                wheres.push(`${prop} = '${FNAMES[val]}'`); break;
+              case 'sname':
+                wheres.push(`${prop} = '${SNAMES[val]}'`); break;
+              default:
+                wheres.push(`${prop} = '${val}'`);
+            }
+          }
         });
       });
     }
@@ -547,7 +575,7 @@ function dbmiddle(req, res, next) {
     log(rows.data);
     if (!rows.data.length) res.json({"accounts": []});
     const ids = rows.data.map(r => r[2]).join(',');
-    sql = `SELECT f.name as fname, a.email, st.name, a.id, s.name as sname
+    sql = `SELECT f.name as fname, a.email, st.name as status, a.id, s.name as sname
       FROM accounts a
       JOIN status st
         ON a.status = st.id
@@ -581,7 +609,7 @@ function dbmiddle(req, res, next) {
     
     MAX_ID = Math.max(MAX_ID,req.body.id);
     const acc = req.body;
-    if (acc.status && !STATUSES.includes(acc.status)) return res.status(400).json({});
+    if (acc.status && !STATUSES[acc.status]) return res.status(400).json({});
     
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
@@ -600,14 +628,14 @@ function dbmiddle(req, res, next) {
         return res.status(400).json({});
       }
       params = [
-        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
+        COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
         acc.birth, 1, acc.premium.start, acc.premium.finish
       ];
     } else {
       params = [
-        acc.id, acc.email, acc.fname, acc.sname, acc.status, 
-        acc.country, acc.city, acc.phone, acc.sex, acc.joined,
+        acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
+        COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
         acc.birth, null, null, null
       ];            
     }
@@ -695,9 +723,9 @@ function dbmiddle(req, res, next) {
     const acc = req.body;
     if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
     if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
-    if (acc.sex && !SEX.includes(acc.sex)) return res.status(400).json({});
+    if (acc.sex && !SEX[acc.sex]) return res.status(400).json({});
 
-    if (acc.status && !STATUSES.includes(acc.status)) return res.status(400).json({});
+    if (acc.status && !STATUSES[acc.status]) return res.status(400).json({});
 
     if (acc.email) {
       const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
@@ -743,7 +771,29 @@ function dbmiddle(req, res, next) {
         
         if (helper.FILTERED_SIMPLE_FIELDS.includes(prop)) {
           fields.push(`${prop}  = ?`);
-          params.push(val);
+          switch (prop) {
+            case 'sex':
+              params.push(SEX[val]);             
+              break;
+            case 'status':
+              params.push(STATUSES[val]);             
+              break;
+            case 'fname':
+              params.push(FNAMES[val]);             
+              break;
+            case 'sname':
+              params.push(SNAMES[val]);             
+              break;
+            case 'country':
+              params.push(COUNTRIES[val]);             
+              break;
+            case 'city':
+              params.push(CITIES[val]);             
+              break;
+            default:
+              params.push(val);
+              break;
+          }
         }
       }
     }
@@ -790,6 +840,10 @@ async function start() {
   rows.forEach(i => COUNTRIES[i.name] = i.id);
   rows = await mysql.queryToMaster('SELECT id, name FROM city;');
   rows.forEach(i => CITIES[i.name] = i.id);
+  rows = await mysql.queryToMaster('SELECT id, name FROM fname;');
+  rows.forEach(i => FNAMES[i.name] = i.id);
+  rows = await mysql.queryToMaster('SELECT id, name FROM sname;');
+  rows.forEach(i => SNAMES[i.name] = i.id);
   await mysql.queryToMaster('SET autocommit=0;');
   return;
 }
