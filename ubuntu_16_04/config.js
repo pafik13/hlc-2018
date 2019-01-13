@@ -3,9 +3,9 @@ const C_MYSQL_PASS = process.env.MYSQL_PASS || '';
 const C_MYSQL_DB = process.env.MYSQL_DB || 'acc';
 
 
-const C_MONET_USER = process.env.MYSQL_USER || 'monetdb';
-const C_MONET_PASS = process.env.MYSQL_PASS || 'monetdb';
-const C_MONET_DB = process.env.MYSQL_DB || 'voc';
+const C_MONET_USER = process.env.MONET_USER || 'monetdb';
+const C_MONET_PASS = process.env.MONET_PASS || 'monetdb';
+const C_MONET_DB = process.env.MONET_DB || 'voc';
 
 const mysqlConn = {
     host     : '127.0.0.1',
