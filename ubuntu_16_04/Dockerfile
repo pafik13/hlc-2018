@@ -43,6 +43,19 @@ RUN node -v  # <= works
 
 RUN npm install pm2 -g
 
+# Install MonetDB
+RUN apt-get install lsb-release -y
+RUN apt-get install apt-transport-https
+RUN echo "deb https://dev.monetdb.org/downloads/deb/ $(lsb_release -cs) monetdb" > /etc/apt/sources.list.d/monetdb.list
+RUN echo "deb-src https://dev.monetdb.org/downloads/deb/ $(lsb_release -cs) monetdb" >> /etc/apt/sources.list.d/monetdb.list
+RUN cat /etc/apt/sources.list.d/monetdb.list
+RUN curl -L https://www.monetdb.org/downloads/MonetDB-GPG-KEY | apt-key add -
+RUN apt update
+RUN apt -y install monetdb5-sql monetdb-client
+
+# Convert
+RUN apt -y install dos2unix
+
 # Environment
 ENV DATA_PATH='/tmp/data/data.zip'
 ENV PORT=80
@@ -50,9 +63,26 @@ ENV NODE_ENV=production
 ENV ALL=true
 ENV MYSQL_USER=root
 ENV DEBUG=accounts:boot*
+ENV IS_LOAD_TO_MONETDB=true
+
 
 # Create app directory
-WORKDIR /usr/src/app
+WORKDIR /usr/src/app/monet
+COPY monet/* ./
+RUN dos2unix ./*
+RUN dos2unix ./.monetdb
+RUN pwd
+RUN systemctl enable monetdbd
+RUN ./init_monet.sh
+# RUN monetdbd create ./db && monetdbd start ./db && monetdb create voc && monetdb release voc && mclient -d voc
+RUN ls -l
+#  && monetdb create voc && monetdb release voc
+# RUN mclient -d voc < TABLES.sql
+# RUN mclient -d voc < SIMILARITY_IN_CITY.prc
+# RUN mclient -d voc < SIMILARITY_IN_CTRY.prc
+
+
+WORKDIR /usr/src/app/
 COPY package*.json ./
 RUN npm install
 COPY *.js ./
@@ -60,8 +90,8 @@ COPY *.json ./
 
 
 # Start MySQL
-ENV INIT_DB="CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;SET GLOBAL max_heap_table_size = 1024 * 1024 * 256;SET GLOBAL tmp_table_size = 1024 * 1024 * 256;"
-ENTRYPOINT date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "${INIT_DB}" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
+ENV INIT_DB="CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;SET GLOBAL max_heap_table_size = 1024 * 1024 * 768;SET GLOBAL tmp_table_size = 1024 * 1024 * 768;"
+ENTRYPOINT date +%H:%M:%S:%N && monetdbd start ./monet/db && date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "${INIT_DB}" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
 
 EXPOSE 80
 # CMD [ "npm", "start" ]
