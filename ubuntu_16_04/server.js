@@ -143,12 +143,13 @@ function dbmiddle(req, res, next) {
             break;
           case 'fname_any':
             fields.add('fname');
-            vals = val.split(',').map(i => `'${i}'`).join(',');
+            vals = val.split(',').map(f => FNAMES[f]).join(',');
             wheres.push(`fname IN (${vals})`);
             break;
           case 'sname_starts':
             fields.add('sname');
-            wheres.push(`sname LIKE '${val}%'`);
+            vals = Object.keys(SNAMES).filter(k => k.startsWith(val)).map(s => SNAMES[s]).join(',');
+            wheres.push(`sname IN (${vals})`);
             break;
           case 'phone_code':
             fields.add('phone');
@@ -156,7 +157,7 @@ function dbmiddle(req, res, next) {
             break;
           case 'city_any':
             fields.add('city');
-            vals = val.split(',').map(i => `'${i}'`).join(',');
+            vals = val.split(',').map(c => CITIES[c]).join(',');
             wheres.push(`city IN (${vals})`);
             break;
           case 'birth_year':
@@ -220,7 +221,7 @@ function dbmiddle(req, res, next) {
               wheres.push(`${field} IS NOT NULL`);
             }
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
-            if (val.indexOf(',') > -1) return res.status(400).json([]);
+            if (val.indexOf(',') > -1) { console.timeEnd(label); return res.status(400).json([]); }
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
             if (!op) { console.timeEnd(label); return res.status(400).json([]); }
@@ -232,7 +233,30 @@ function dbmiddle(req, res, next) {
             } else {
               fields.add(field);
             }
-            wheres.push(`${field} ${op} '${val}'`);
+
+            switch (field) {
+              case 'sex':
+                wheres.push(`${field} ${op} ${SEX[val]}`);
+                break;
+              case 'status':
+                wheres.push(`${field} ${op} ${STATUSES[val]}`);
+                break;      
+              case 'fname':
+                wheres.push(`${field} ${op} ${FNAMES[val]}`);
+                break;  
+              case 'sname':
+                wheres.push(`${field} ${op} ${SNAMES[val]}`);
+                break;   
+              case 'country':
+                wheres.push(`${field} ${op} ${COUNTRIES[val]}`);
+                break;    
+              case 'city':
+                wheres.push(`${field} ${op} ${CITIES[val]}`);
+                break;  
+              default:
+                wheres.push(`${field} ${op} '${val}'`);
+                break;
+            }
           } else { 
             console.timeEnd(label); 
             return res.status(400).json([]);
@@ -245,6 +269,31 @@ function dbmiddle(req, res, next) {
     fields.add('email');
     fields.add('id');
     let unique = [...fields];
+    for(let f = 0, len = unique.length; f < len; f++) {
+      const col = unique[f];
+      switch (col) {
+        case 'sex':
+          unique[f] = "IF(sex = 1,'m','f') as sex";
+          break;
+        case 'status':
+          unique[f] = "(SELECT name FROM status WHERE id = status) as status";
+          break;     
+        case 'fname':
+          unique[f] = "(SELECT name FROM fname WHERE id = fname) as fname";
+          break;  
+        case 'sname':
+          unique[f] = "(SELECT name FROM sname WHERE id = sname) as sname";
+          break;   
+        case 'country':
+          unique[f] = "(SELECT name FROM country WHERE id = country) as country";
+          break;    
+        case 'city':
+          unique[f] = "(SELECT name FROM city WHERE id = a.city) as city";
+          break;  
+        default:
+          break;
+    }
+
     let sql = `
       SELECT ${unique.join(',')}
         FROM accounts`;
