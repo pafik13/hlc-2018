@@ -102,16 +102,18 @@ function dbmiddle(req, res, next) {
   });
 
   app.get('/accounts/filter', async (req, res) => {
+    const label = `filter_parse_${req.query.query_id}`;
+    console.time(label);
     const now = new Date() / 1000;
     const log = debug.extend('filter');
     
     if (UPDATES || INSERTS) {
       UPDATES = 0;
       INSERTS = 0;
-      const label = 'UPSERT_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
 
     const fields = new Set();
@@ -123,7 +125,7 @@ function dbmiddle(req, res, next) {
     let cnt = 0;
     // res.json(req.query);
     const q = req.query;
-    if (q.likes_contains) return res.status(200).json({accounts: []});
+    if (q.likes_contains) { console.timeEnd(label); return res.status(200).json({accounts: []}); }
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
@@ -164,6 +166,7 @@ function dbmiddle(req, res, next) {
             `);
             break;  
           case 'premium_now':
+            console.timeEnd(label); 
             return res.status(200).json({accounts: []});
             fields.add('premium');
             fields.add('pstart');
@@ -184,6 +187,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
+            console.timeEnd(label); 
             return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
@@ -219,7 +223,7 @@ function dbmiddle(req, res, next) {
             if (val.indexOf(',') > -1) return res.status(400).json([]);
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
-            if (!op) return res.status(400).json([]);
+            if (!op) { console.timeEnd(label); return res.status(400).json([]); }
             log(`${field} : ${oper} : ${op} : ${val}`);
             if (field == 'premium') {
               fields.add('premium');
@@ -229,7 +233,8 @@ function dbmiddle(req, res, next) {
               fields.add(field);
             }
             wheres.push(`${field} ${op} '${val}'`);
-          } else {
+          } else { 
+            console.timeEnd(label); 
             return res.status(400).json([]);
           }
           break;
@@ -268,8 +273,11 @@ function dbmiddle(req, res, next) {
     
     if (limit) sql = sql + `\n LIMIT ${limit}`;
     let rows = [];
+    const label2 = label + ':exec';
     try {
       log(sql);
+      console.timeEnd(label);
+      console.time(label2);
       rows = await req.db.queryToReplica(sql);
       if (unique.includes('premium')) {
         rows = rows.map((row) => {
@@ -283,11 +291,16 @@ function dbmiddle(req, res, next) {
         });
       }
     } catch(e) {
+      console.timeEnd(label2);
       console.log(`FILTER_ERROR: ${q.query_id}`);
       console.error(e);
     }
     // res.json({accounts: rows, wheres});
+    console.timeEnd(label2);
+    const label3 = label + ':resp';
+    console.time(label3);
     res.json({accounts: rows});
+    console.timeEnd(label3);
   });
 
   app.get('/accounts/group', async (req, res) => {
@@ -296,10 +309,10 @@ function dbmiddle(req, res, next) {
     if (UPDATES || INSERTS) {
       UPDATES = 0;
       INSERTS = 0;
-      const label = 'UPSERT_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
 
     const q = req.query;
@@ -439,10 +452,10 @@ function dbmiddle(req, res, next) {
     if (UPDATES || INSERTS) {
       UPDATES = 0;
       INSERTS = 0;
-      const label = 'UPSERT_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
 
     const id = Number(req.params.id);
@@ -533,10 +546,10 @@ function dbmiddle(req, res, next) {
     if (UPDATES || INSERTS) {
       UPDATES = 0;
       INSERTS = 0;
-      const label = 'UPSERT_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'UPSERT_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
 
     const id = Number(req.params.id);
@@ -652,10 +665,10 @@ function dbmiddle(req, res, next) {
     ++INSERTS;
     if (INSERTS > 30) {
       INSERTS = 0;
-      const label = 'NEW_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'NEW_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
     return res.status(201).json({})
     
@@ -812,10 +825,10 @@ function dbmiddle(req, res, next) {
     ++UPDATES;
     if (UPDATES > 30) {
       UPDATES = 0;
-      const label = 'UPD_COMMIT_' + req.query.query_id;
-      console.time(label);
+      // const label = 'UPD_COMMIT_' + req.query.query_id;
+      // console.time(label);
       await req.db.queryToMaster('COMMIT;');
-      console.timeEnd(label);
+      // console.timeEnd(label);
     }
     return res.status(202).json({});
   });
