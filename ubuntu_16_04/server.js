@@ -292,6 +292,7 @@ function dbmiddle(req, res, next) {
           break;  
         default:
           break;
+      }
     }
 
     let sql = `
