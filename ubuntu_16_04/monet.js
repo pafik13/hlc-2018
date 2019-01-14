@@ -21,7 +21,7 @@ const factory = {
 };
  
 const poolOpts = {
-  max: 10, // maximum size of the pool
+  max: 6, // maximum size of the pool
   min: 4, // minimum size of the pool
 };
  

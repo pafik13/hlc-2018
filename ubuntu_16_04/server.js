@@ -184,7 +184,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
-            // return res.status(200).json({accounts: []});
+            return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
             vals = valArr.map(i => `'${i}'`).join(',');           
@@ -406,26 +406,29 @@ function dbmiddle(req, res, next) {
       console.error(e);
     }
     if (rows.length) {
-      rows.forEach(row => {
-        keys.forEach(k => {
-          if (!row[k]) {
-            delete row[k];
+      const rl = rows.length;
+      for(let r = 0; r < rl; r++){
+        const row = rows[r];
+        const kl = keys.length;
+        for(let k = 0; k < kl; k++){
+          const key = keys[k];
+          const val = row[key]
+          if (!val) {
+            delete row[key];
           } else {
-            switch (k) {
+            switch (key) {
               case 'city':
-              row[k] = CITIES[val];
+                row[key] = CITIES[val]; break;
               case 'country':
-                wheres.push(`${prop} = '${COUNTRIES[val]}'`); break;
+                row[key] = COUNTRIES[val]; break;
               case 'fname':
-                wheres.push(`${prop} = '${FNAMES[val]}'`); break;
+                row[key] = FNAMES[val]; break;
               case 'sname':
-                wheres.push(`${prop} = '${SNAMES[val]}'`); break;
-              default:
-                wheres.push(`${prop} = '${val}'`);
+                row[key] = SNAMES[val]; break;
             }
           }
-        });
-      });
+        }
+      }
     }
     res.json({groups: rows});
   });

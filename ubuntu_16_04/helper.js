@@ -13,7 +13,7 @@ const SQL_CREATE_ACCOUNTS =
   , joined integer NOT NULL, birth integer
   , premium BOOLEAN
   , pstart integer, pfinish integer
-  )`;
+  ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS =
   `INSERT INTO accounts

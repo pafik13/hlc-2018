@@ -75,7 +75,7 @@ RUN pwd
 RUN systemctl enable monetdbd
 RUN ./init_monet.sh
 # RUN monetdbd create ./db && monetdbd start ./db && monetdb create voc && monetdb release voc && mclient -d voc
-RUN ls -l
+# RUN ls -l
 #  && monetdb create voc && monetdb release voc
 # RUN mclient -d voc < TABLES.sql
 # RUN mclient -d voc < SIMILARITY_IN_CITY.prc
