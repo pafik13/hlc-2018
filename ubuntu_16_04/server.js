@@ -651,11 +651,12 @@ function dbmiddle(req, res, next) {
         }
       }
     }
+    if (!sql) return res.json({"accounts": []});
     sql = `${sql} limit ${limit};`;
     log(sql);
     let rows = await monet.queryAsync(sql);
     log(rows.data);
-    if (!rows.data.length) res.json({"accounts": []});
+    if (!rows.data.length) return res.json({"accounts": []});
     const ids = rows.data.map(r => r[2]).join(',');
     sql = `SELECT f.name as fname, a.email, st.name as status, a.id, s.name as sname
       FROM accounts a
