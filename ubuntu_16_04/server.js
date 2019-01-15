@@ -103,7 +103,7 @@ function dbmiddle(req, res, next) {
 
   app.get('/accounts/filter', async (req, res) => {
     const label = `filter_parse_${req.query.query_id}`;
-    console.time(label);
+    /* console.time(label); */
     const now = new Date() / 1000;
     const log = debug.extend('filter');
     
@@ -125,7 +125,7 @@ function dbmiddle(req, res, next) {
     let cnt = 0;
     // res.json(req.query);
     const q = req.query;
-    if (q.likes_contains) { console.timeEnd(label); return res.status(200).json({accounts: []}); }
+    if (q.likes_contains) { /* console.timeEnd(label); */ return res.status(200).json({accounts: []}); }
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
@@ -167,7 +167,7 @@ function dbmiddle(req, res, next) {
             `);
             break;  
           case 'premium_now':
-            console.timeEnd(label); 
+            /* console.timeEnd(label); */ 
             return res.status(200).json({accounts: []});
             fields.add('premium');
             fields.add('pstart');
@@ -188,7 +188,7 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
-            console.timeEnd(label); 
+            /* console.timeEnd(label); */ 
             return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
@@ -221,10 +221,10 @@ function dbmiddle(req, res, next) {
               wheres.push(`${field} IS NOT NULL`);
             }
           } else if (helper.FILTERED_SIMPLE_FIELDS.includes(field)) {
-            if (val.indexOf(',') > -1) { console.timeEnd(label); return res.status(400).json([]); }
+            if (val.indexOf(',') > -1) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             // const val = q[prop];
             const op = helper.FILTER_OPERATIONS[oper];
-            if (!op) { console.timeEnd(label); return res.status(400).json([]); }
+            if (!op) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             log(`${field} : ${oper} : ${op} : ${val}`);
             if (field == 'premium') {
               fields.add('premium');
@@ -258,7 +258,7 @@ function dbmiddle(req, res, next) {
                 break;
             }
           } else { 
-            console.timeEnd(label); 
+            /* console.timeEnd(label); */ 
             return res.status(400).json([]);
           }
           break;
@@ -276,19 +276,19 @@ function dbmiddle(req, res, next) {
           unique[f] = "IF(sex = 1,'m','f') as sex";
           break;
         case 'status':
-          unique[f] = "(SELECT name FROM status WHERE id = status) as status";
+          unique[f] = "(SELECT status.name FROM status WHERE status.id = status) as status";
           break;     
         case 'fname':
-          unique[f] = "(SELECT name FROM fname WHERE id = fname) as fname";
+          unique[f] = "(SELECT fname.name FROM fname WHERE fname.id = fname) as fname";
           break;  
         case 'sname':
-          unique[f] = "(SELECT name FROM sname WHERE id = sname) as sname";
+          unique[f] = "(SELECT sname.name FROM sname WHERE sname.id = sname) as sname";
           break;   
         case 'country':
-          unique[f] = "(SELECT name FROM country WHERE id = country) as country";
+          unique[f] = "(SELECT country.name FROM country WHERE country.id = country) as country";
           break;    
         case 'city':
-          unique[f] = "(SELECT name FROM city WHERE id = a.city) as city";
+          unique[f] = "(SELECT city.name FROM city WHERE city.id = city) as city";
           break;  
         default:
           break;
@@ -326,8 +326,8 @@ function dbmiddle(req, res, next) {
     const label2 = label + ':exec';
     try {
       log(sql);
-      console.timeEnd(label);
-      console.time(label2);
+      /* console.timeEnd(label); */
+      // console.time(label2);
       rows = await req.db.queryToReplica(sql);
       if (unique.includes('premium')) {
         rows = rows.map((row) => {
@@ -341,21 +341,33 @@ function dbmiddle(req, res, next) {
         });
       }
     } catch(e) {
-      console.timeEnd(label2);
+      /* console.timeEnd(label2); */
       console.log(`FILTER_ERROR: ${q.query_id}`);
       console.error(e);
     }
     // res.json({accounts: rows, wheres});
-    console.timeEnd(label2);
+    /* console.timeEnd(label2); */
     const label3 = label + ':resp';
-    console.time(label3);
+    // console.time(label3);
     res.json({accounts: rows});
-    console.timeEnd(label3);
+    /* console.timeEnd(label3); */
   });
 
   app.get('/accounts/group', async (req, res) => {
+    const label = `group_parse_${req.query.query_id}`;
+    console.time(label); 
     const log = debug.extend('group');
-    
+
+    const F_SEL = {
+      'sex': "IF(sex = 1,'m','f') as sex",
+      'status': "(SELECT status.name FROM status WHERE status.id = status) as status",
+      'fname': "(SELECT fname.name FROM fname WHERE fname.id = fname) as fname",  
+      'sname':"(SELECT sname.name FROM sname WHERE sname.id = sname) as sname",
+      'country': "(SELECT country.name FROM country WHERE country.id = country) as country",
+      'city': "(SELECT city.name FROM city WHERE city.id = city) as city",
+      'interest': '(SELECT interest.name FROM interest WHERE interest.id = accounts_interest.interest) as interests',
+    }
+
     if (UPDATES || INSERTS) {
       UPDATES = 0;
       INSERTS = 0;
@@ -366,8 +378,8 @@ function dbmiddle(req, res, next) {
     }
 
     const q = req.query;
-    if (!q.keys) return res.status(400).json([]);
-    if (q.likes) return res.status(200).json({groups: []});
+    if (!q.keys) { console.timeEnd(label); return res.status(400).json([]); }
+    if (q.likes) { console.timeEnd(label); return res.status(200).json({groups: []});}
     
     let hasInterests = false;
     const keys = q.keys.split(',');
@@ -384,10 +396,11 @@ function dbmiddle(req, res, next) {
         }
         keys.push('interest');
       } else {
+        console.timeEnd(label); 
         return res.status(400).json([]);
       }
     } else {
-      if (check.length > 1) return res.status(400).json([]);
+      if (check.length > 1) { console.timeEnd(label); return res.status(400).json([]); }
     }
     
     const wheres = [];
@@ -403,11 +416,11 @@ function dbmiddle(req, res, next) {
             break;
           case 'order':
             order = Number(val);
-            if (![-1, 1].includes(order)) return res.status(400).json([]);
+            if (![-1, 1].includes(order)) { console.timeEnd(label); return res.status(400).json([]); }
             break;
           case 'limit':
             limit = Number(val);
-            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (!Number.isInteger(limit)) { console.timeEnd(label); return res.status(400).json([]); }
             break;
           case 'birth':
           case 'joined':
@@ -434,18 +447,19 @@ function dbmiddle(req, res, next) {
                   wheres.push(`${prop} = '${val}'`);
               }
             } else {
+              console.timeEnd(label); 
               return res.status(400).json([]);
             }
             break;
         }
       }
     }
-
+    const fields = keys.map(k => F_SEL[k]);
     let sql = `
-      SELECT ${keys.join(',')}, count(accounts.id) as count
+      SELECT ${fields.join(',')}, count(accounts.id) as count
         FROM accounts`;
     if (hasInterests) {
-      sql = sql.replace('interest', '(SELECT name FROM interest WHERE id = accounts_interest.interest) as interests');
+      // sql = sql.replace('interest', );
       sql = `${sql}
         JOIN accounts_interest
           ON accounts.id = accounts_interest.acc_id`;
@@ -463,6 +477,7 @@ function dbmiddle(req, res, next) {
         let rows = [];
     try {
       log(sql);
+      console.timeEnd(label); 
       rows = await req.db.queryToReplica(sql);
     } catch(e) {
       console.log(`GROUP_ERROR: ${q.query_id}`);
