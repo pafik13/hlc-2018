@@ -1,0 +1,4 @@
+# Наследуемся от MemSql
+FROM memsql/cluster-in-a-box
+
+ENV LICENSE_KEY=BGQ1YmEzMmFlMzA3MTRiNzRhMDJkNTliZjNkN2I4NDc0AAAAAAAAAAAAAAIAAAAAAAQwNAIYQguoCGVw7Rgsis56ditq+u4oFuduFCZfAhgZJtrS3GX7QaakspWiutGczwg1Z0rhhVIAAA==
