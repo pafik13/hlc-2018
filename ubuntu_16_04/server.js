@@ -493,19 +493,18 @@ function dbmiddle(req, res, next) {
           const val = row[key]
           if (!val) {
             delete row[key];
-          } 
-          // else {
-          //   switch (key) {
-          //     case 'city':
-          //       row[key] = CITIES[val]; break;
-          //     case 'country':
-          //       row[key] = COUNTRIES[val]; break;
-          //     case 'fname':
-          //       row[key] = FNAMES[val]; break;
-          //     case 'sname':
-          //       row[key] = SNAMES[val]; break;
-          //   }
-          // }
+          } else {
+            switch (key) {
+              case 'city':
+                row[key] = CITIES[val]; break;
+              case 'country':
+                row[key] = COUNTRIES[val]; break;
+              case 'fname':
+                row[key] = FNAMES[val]; break;
+              case 'sname':
+                row[key] = SNAMES[val]; break;
+            }
+          }
         }
       }
     }

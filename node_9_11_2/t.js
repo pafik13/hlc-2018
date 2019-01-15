@@ -15,5 +15,5 @@ const mysql = new database.mysql({
     },
 });
 mysql.connect(); // MYSQL
-// mysql.queryToMaster('CREATE DATABASE IF NOT EXISTS acc;');
+mysql.queryToMaster('CREATE DATABASE IF NOT EXISTS acc;');
 // this.mysql = mysql;
