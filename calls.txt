@@ -13,3 +13,10 @@ docker run --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/node-w
 test_accounts_261218.zip
 
 docker run --rm -v /c/data.zip:/tmp/data/data.zip:ro -p 8080:80 -it re1ax/ubuntu-16-04
+
+pm2 start pm2.json --env production
+pm2 start pm2.json --env dev
+
+pm2 start pm2.json --env production && pm2 logs
+
+./highloadcup_tester -hlcupdocs ./ -addr http://0.0.0.0:8080 -utf8 > test.result

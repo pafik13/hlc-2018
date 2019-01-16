@@ -68,7 +68,6 @@ function dbmiddle(req, res, next) {
     res.json(rows);
   });
 
-  
   app.get('/premium_all', async (req, res) => {
     const sql = `
       SELECT ap.*, datetime(ap.finish, 'unixepoch') as dt
@@ -101,10 +100,90 @@ function dbmiddle(req, res, next) {
     res.json(rows);
   });
 
+  app.get('/suggest', async (req, res) => {
+    const log = debug.extend('suggest_test');
+    
+    const q = req.query;
+    log(q);
+    if (!q.id) return res.status(400).json([]);
+    
+    let sql = false;
+    let limit = 100;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const val = q[prop];
+        switch (prop) {
+          case 'id':
+          case 'query_id':
+            break;
+          case 'limit':
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (limit < 1) return res.status(400).json([]);
+            break;
+          case 'city':
+          case 'country':
+            if (!val) return res.status(400).json([]);
+            switch (prop) {
+              case 'city':
+                sql = `select * from similarity_in_city(${q.id}, ${CITIES[val]})`; break;
+              case 'country':
+                sql = `select * from similarity_in_ctry(${q.id}, ${COUNTRIES[val]})`; break;
+            }
+            break;
+          default:
+            return res.status(400).json([]);
+        }
+      }
+    }
+    if (!sql) return res.json({"accounts": []});
+    sql = `${sql} limit ${limit};`;
+    log(sql);
+    let rows = await monet.queryAsync(sql);
+    log(rows.data);
+    return res.json({"accounts": rows});
+  });
+  
+  app.get('/likes', async (req, res) => {
+    const log = debug.extend('likes');
+    
+    const q = req.query;
+    log(q);
+    if (!q.id) return res.status(400).json([]);
+    
+    let sql = false;
+    let limit = 100;
+    for (let prop in q) {
+      if (q.hasOwnProperty(prop)) {
+        const val = q[prop];
+        switch (prop) {
+          case 'id':
+          case 'query_id':
+            break;
+          case 'limit':
+            limit = Number(val);
+            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (limit < 1) return res.status(400).json([]);
+            break;
+          default:
+            return res.status(400).json([]);
+        }
+      }
+    }
+    
+    sql = `SELECT * FROM likes WHERE liker = ${q.id} limit ${limit};`;
+    log(sql);
+    let rows = await monet.queryAsync(sql);
+    log(rows.data);
+    return res.json(rows);
+  });
+
+
   app.get('/accounts/filter', async (req, res) => {
     const label = `filter_parse_${req.query.query_id}`;
     /* console.time(label); */
-    const now = new Date() / 1000;
+    // const now = new Date() / 1000;
+    const now = 1546083844;
     const log = debug.extend('filter');
     
     if (UPDATES || INSERTS) {
@@ -125,7 +204,7 @@ function dbmiddle(req, res, next) {
     let cnt = 0;
     // res.json(req.query);
     const q = req.query;
-    if (q.likes_contains) { /* console.timeEnd(label); */ return res.status(200).json({accounts: []}); }
+    // if (q.likes_contains) { /* console.timeEnd(label); */ return res.status(200).json({accounts: []}); }
     for (let prop in q) {
       if (q.hasOwnProperty(prop)) {
         const val = q[prop];
@@ -186,7 +265,7 @@ function dbmiddle(req, res, next) {
             break;  
           case 'premium_now':
             /* console.timeEnd(label); */ 
-            return res.status(200).json({accounts: []});
+            // return res.status(200).json({accounts: []});
             fields.add('premium');
             fields.add('pstart');
             fields.add('pfinish');
@@ -206,18 +285,46 @@ function dbmiddle(req, res, next) {
             if (prop === "interests_contains") iSQL = `${iSQL} \n HAVING (count(*) >= ${cnt})`;
             break;   
           case 'likes_contains':
+            const lbl = label + ':likes_contains';
+            console.time(lbl);
             /* console.timeEnd(label); */ 
-            return res.status(200).json({accounts: []});
+            // return res.status(200).json({accounts: []});
             valArr = val.split(',');
             cnt = valArr.length;
-            vals = valArr.map(i => `'${i}'`).join(',');           
-            lSQL = `
-              SELECT acc_id AS id
-                FROM accounts_like 
-               WHERE like_id IN (${vals})
-               GROUP BY acc_id
-              HAVING (count(*) >= ${cnt})
-            `;
+            if (!cnt) res.status(400).json([]);
+            
+            vals = valArr.join(',');
+            if (cnt === 1) {
+              lSQL = `
+                SELECT liker
+                  FROM likes 
+                 WHERE likee = ${vals}
+                 LIMIT ${limit * 3 || 100};
+              `;            
+            } else {
+              lSQL = `
+                SELECT liker
+                  FROM likes 
+                 WHERE likee IN (${vals})
+                 GROUP BY liker
+                HAVING (count(likee) >= ${cnt})
+                LIMIT ${limit * 3 || 100};
+              `;              
+            }
+            try {
+              log(lSQL);
+              const likers = await monet.queryAsync(lSQL);
+              if (!likers.data.length) return res.status(200).json({accounts: []});
+              
+              const ids = likers.data.map(l => l[0]).join(',');
+              wheres.push(`id IN (${ids})`);
+            } catch(e) {
+              console.timeEnd(lbl);
+              console.error(e);
+              return res.status(500).json([]);
+            }
+            
+            console.timeEnd(lbl);
             break;             
         default:
           const arr = prop.split('_');
@@ -323,20 +430,10 @@ function dbmiddle(req, res, next) {
     let sql = `
       SELECT ${unique.join(',')}
         FROM accounts`;
-    if (iSQL || lSQL) {
-      if (iSQL !== "" && lSQL !== "") {
-        sql = `
-          ${sql} JOIN (${iSQL}) i USING(id) JOIN (${lSQL}) l USING(id)
+    if (iSQL) {
+      sql = `
+        ${sql} JOIN (${iSQL}) i USING(id)
       `;
-      } else if (iSQL) {
-        sql = `
-          ${sql} JOIN (${iSQL}) i USING(id)
-        `;
-      } else {
-        sql = `
-          ${sql} JOIN (${lSQL}) l USING(id)
-        `;       
-      }
     }
 
     if (wheres.length) {
@@ -392,7 +489,7 @@ function dbmiddle(req, res, next) {
       'country': "(SELECT country.name FROM country WHERE country.id = country) as country",
       'city': "(SELECT city.name FROM city WHERE city.id = city) as city",
       'interest': '(SELECT interest.name FROM interest WHERE interest.id = accounts_interest.interest) as interests',
-    }
+    };
 
     if (UPDATES || INSERTS) {
       UPDATES = 0;
@@ -576,8 +673,14 @@ function dbmiddle(req, res, next) {
             break;
           case 'city':
           case 'country':
+           if (!val) return res.status(400).json([]);
+            switch (prop) {
+              case 'city':
+                wheres.push(`${prop} = '${CITIES[val]}'`); break;
+              case 'country':
+                wheres.push(`${prop} = '${COUNTRIES[val]}'`); break;
+            }
             if (!val) return res.status(400).json([]);
-            wheres.push(`${prop} = '${val}'`);
             break;
           default:
             return res.status(400).json([]);
