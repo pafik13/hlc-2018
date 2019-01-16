@@ -136,6 +136,7 @@ function dbmiddle(req, res, next) {
           case 'country_gt':
           case 'country_lt':
           case 'country_neq':
+          case 'sname_lt':
             /* console.timeEnd(label); */ 
             return res.status(400).json([]);
           case 'query_id':
