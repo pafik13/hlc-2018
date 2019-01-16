@@ -250,29 +250,36 @@ function dbmiddle(req, res, next) {
             } else {
               fields.add(field);
             }
-
+            
+            let ref_val = true;
             switch (field) {
               case 'sex':
-                wheres.push(`${field} ${op} ${SEX[val]}`);
+                ref_val = SEX[val];
                 break;
               case 'status':
-                wheres.push(`${field} ${op} ${STATUSES[val]}`);
+                ref_val = STATUSES[val];
                 break;      
               case 'fname':
-                wheres.push(`${field} ${op} ${FNAMES[val]}`);
+                ref_val = FNAMES[val];
                 break;  
               case 'sname':
-                wheres.push(`${field} ${op} ${SNAMES[val]}`);
+                ref_val = SNAMES[val];
                 break;   
               case 'country':
-                wheres.push(`${field} ${op} ${COUNTRIES[val]}`);
+                ref_val = COUNTRIES[val];
                 break;    
               case 'city':
-                wheres.push(`${field} ${op} ${CITIES[val]}`);
+                ref_val = CITIES[val];
                 break;  
               default:
                 wheres.push(`${field} ${op} '${val}'`);
                 break;
+            }
+            if (Number.isInteger(ref_val)) {
+              wheres.push(`${field} ${op} ${ref_val}`);
+            } else if (!ref_val) {
+              /* console.timeEnd(label); */ 
+              return res.status(400).json([]);
             }
           } else { 
             /* console.timeEnd(label); */ 
