@@ -342,8 +342,9 @@ function dbmiddle(req, res, next) {
       }
     } catch(e) {
       /* console.timeEnd(label2); */
-      console.log(`FILTER_ERROR: ${q.query_id}`);
-      console.error(e);
+      console.log(`FILTER_ERROR: ${req.url}`);
+      // console.error(e);
+      return res.status(500).json({e});
     }
     // res.json({accounts: rows, wheres});
     /* console.timeEnd(label2); */
@@ -355,7 +356,7 @@ function dbmiddle(req, res, next) {
 
   app.get('/accounts/group', async (req, res) => {
     const label = `group_parse_${req.query.query_id}`;
-    console.time(label); 
+    // console.time(label); 
     const log = debug.extend('group');
 
     const F_SEL = {
@@ -378,7 +379,7 @@ function dbmiddle(req, res, next) {
     }
 
     const q = req.query;
-    if (!q.keys) { console.timeEnd(label); return res.status(400).json([]); }
+    if (!q.keys) { /* console.timeEnd(label); */ return res.status(400).json([]); }
     
     let hasInterests = false;
     const keys = q.keys.split(',');
@@ -395,14 +396,14 @@ function dbmiddle(req, res, next) {
         }
         keys.push('interest');
       } else {
-        console.timeEnd(label); 
+        /* console.timeEnd(label); */ 
         return res.status(400).json([]);
       }
     } else {
-      if (check.length > 1) { console.timeEnd(label); return res.status(400).json([]); }
+      if (check.length > 1) { /* console.timeEnd(label); */ return res.status(400).json([]); }
     }
     
-    if (q.likes) { console.timeEnd(label); return res.status(200).json({groups: []});}
+    if (q.likes) { /* console.timeEnd(label); */ return res.status(200).json({groups: []});}
 
     const wheres = [];
     let limit = 50;
@@ -417,11 +418,11 @@ function dbmiddle(req, res, next) {
             break;
           case 'order':
             order = Number(val);
-            if (![-1, 1].includes(order)) { console.timeEnd(label); return res.status(400).json([]); }
+            if (![-1, 1].includes(order)) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             break;
           case 'limit':
             limit = Number(val);
-            if (!Number.isInteger(limit)) { console.timeEnd(label); return res.status(400).json([]); }
+            if (!Number.isInteger(limit)) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             break;
           case 'birth':
           case 'joined':
@@ -452,7 +453,7 @@ function dbmiddle(req, res, next) {
                   wheres.push(`${prop} = '${val}'`);
               }
             } else {
-              console.timeEnd(label); 
+              /* console.timeEnd(label); */ 
               return res.status(400).json([]);
             }
             break;
@@ -482,11 +483,12 @@ function dbmiddle(req, res, next) {
         let rows = [];
     try {
       log(sql);
-      console.timeEnd(label); 
+      /* console.timeEnd(label); */ 
       rows = await req.db.queryToReplica(sql);
     } catch(e) {
-      console.log(`GROUP_ERROR: ${q.query_id}`);
-      console.error(e);
+      console.log(`GROUP_ERROR: ${req.url}`);
+      // console.error(e);
+      return res.status(500).json({e});
     }
     if (rows.length) {
       const rl = rows.length;
@@ -587,6 +589,7 @@ function dbmiddle(req, res, next) {
     } catch(e) {
       console.log(`RECOMMEND_ERROR: ${q.query_id}`);
       console.error(e);
+      return res.status(500).json({e});
     }
     if (rows.length) {
       rows.forEach(row => {
@@ -733,6 +736,7 @@ function dbmiddle(req, res, next) {
       .catch(e => {
         console.log(`NEW_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
+        return res.status(500).json({e});
       })
     ++INSERTS;
     if (INSERTS > 30) {
@@ -893,6 +897,7 @@ function dbmiddle(req, res, next) {
       .catch(e => {
         console.log(`UPD_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
+        return res.status(500).json({e});
       });
     ++UPDATES;
     if (UPDATES > 30) {

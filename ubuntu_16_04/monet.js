@@ -21,7 +21,7 @@ const factory = {
 };
  
 const poolOpts = {
-  max: 6, // maximum size of the pool
+  max: 8, // maximum size of the pool
   min: 4, // minimum size of the pool
 };
  
@@ -40,11 +40,11 @@ const myPool = genericPool.createPool(factory, poolOpts);
          
         resourcePromise
           .then(conn => {
-            const lbl = `query_${conn.id}_${new Date() / 1}`;
-            console.time(lbl);
+            // const lbl = `query_${conn.id}_${new Date() / 1}`;
+            // console.time(lbl);
             conn.query(sql)
               .then(rows => {
-                  console.timeEnd(lbl);
+                  // console.timeEnd(lbl);
                   myPool.release(conn);
                   return resolve(rows);
               });
