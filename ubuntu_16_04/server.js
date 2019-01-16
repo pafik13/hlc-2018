@@ -379,7 +379,6 @@ function dbmiddle(req, res, next) {
 
     const q = req.query;
     if (!q.keys) { console.timeEnd(label); return res.status(400).json([]); }
-    if (q.likes) { console.timeEnd(label); return res.status(200).json({groups: []});}
     
     let hasInterests = false;
     const keys = q.keys.split(',');
@@ -403,6 +402,8 @@ function dbmiddle(req, res, next) {
       if (check.length > 1) { console.timeEnd(label); return res.status(400).json([]); }
     }
     
+    if (q.likes) { console.timeEnd(label); return res.status(200).json({groups: []});}
+
     const wheres = [];
     let limit = 50;
     let order = 1;
@@ -435,6 +436,10 @@ function dbmiddle(req, res, next) {
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
               switch (prop) {
+                case 'sex':
+                  wheres.push(`${prop} = '${SEX[val]}'`); break;
+                case 'status':
+                  wheres.push(`${prop} = '${STATUSES[val]}'`); break;
                 case 'city':
                   wheres.push(`${prop} = '${CITIES[val]}'`); break;
                 case 'country':
