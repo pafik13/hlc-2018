@@ -131,11 +131,18 @@ function dbmiddle(req, res, next) {
         const val = q[prop];
         let vals = '';
         switch (prop) {
+          case 'city_gt':
+          case 'city_lt':
+          case 'country_gt':
+          case 'country_lt':
+          case 'country_neq':
+            /* console.timeEnd(label); */ 
+            return res.status(400).json([]);
           case 'query_id':
             break;
           case 'limit':
             limit = Number(val);
-            if (!Number.isInteger(limit)) return res.status(400).json([]);
+            if (!Number.isInteger(limit)) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             break;
           case 'email_domain':
             fields.add('email');
@@ -157,7 +164,17 @@ function dbmiddle(req, res, next) {
             break;
           case 'city_any':
             fields.add('city');
-            vals = val.split(',').map(c => CITIES[c]).join(',');
+            let errors = false;
+            vals = val.split(',').map(c => {
+              const city = CITIES[c];
+              if (city) {
+                return city;
+              } else {
+                errors = true;
+                return city;
+              }
+            }).join(',');
+            if (errors) { /* console.timeEnd(label); */ return res.status(400).json([]); }
             wheres.push(`city IN (${vals})`);
             break;
           case 'birth_year':
