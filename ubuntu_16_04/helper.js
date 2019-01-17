@@ -53,7 +53,7 @@ const SQL_CREATE_ACCOUNTS_INTEREST =
 `CREATE TABLE accounts_interest
   ( interest TINYINT UNSIGNED
   , acc_id MEDIUMINT UNSIGNED NOT NULL
-  )`;
+  ) ENGINE=MEMORY`;
 
 const SQL_INSERT_ACCOUNTS_INTEREST =
 `INSERT INTO accounts_interest
