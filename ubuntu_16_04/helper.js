@@ -146,8 +146,9 @@ function getDictCreation(tableName, idType = 'TINYINT') {
 
   if (!tableName) throw new Error('Empty tableName');
   const cmd = `CREATE TABLE ${tableName} 
-    ( id ${idType} UNSIGNED PRIMARY KEY
+    ( id ${idType} UNSIGNED PRIMARY KEY AUTO_INCREMENT
     , name VARCHAR(50)
+    , UNIQUE KEY (name)
     );`;
   log(cmd);
   return cmd;
@@ -158,6 +159,32 @@ function getDictInsertion(tableName) {
 
   if (!tableName) throw new Error('Empty tableName');
   const cmd = `INSERT INTO ${tableName} (id, name) VALUES ?`;
+  log(cmd);
+  return cmd;
+}
+
+
+function getDictProcCreation(tableName, delimiter = '#') {
+  const log = debug.extend('getDictProcCreation');
+
+  if (!tableName) throw new Error('Empty tableName');
+  const cmd = ` 
+    CREATE PROCEDURE insert_${tableName}
+    (
+      IN p_name varchar(50)
+    )
+    BEGIN
+      DECLARE v_${tableName}_id INT UNSIGNED DEFAULT 0;
+      DECLARE EXIT HANDLER FOR SQLEXCEPTION
+      BEGIN
+        SELECT * FROM ${tableName} WHERE name = p_name;
+      END;
+    
+      INSERT INTO ${tableName} (name) VALUES (p_name);
+      SET v_${tableName}_id = LAST_INSERT_ID();
+      SELECT * from ${tableName} WHERE id = v_${tableName}_id;
+    END
+  `;
   log(cmd);
   return cmd;
 }
@@ -207,6 +234,7 @@ module.exports = exports = {
     func: {
       getIndexCreation,
       getDictCreation,
+      getDictProcCreation,
       getDictInsertion,
       getDictRefference
     }

@@ -91,6 +91,15 @@ async function insertDict(objDict, objName) {
         await mysql.queryToMaster(helper.func.getDictCreation('city', 'SMALLINT'));
         await mysql.queryToMaster(helper.func.getDictCreation('interest'));
         await mysql.queryToMaster(helper.func.getDictCreation('status'));
+        
+        
+        await mysql.queryToMaster(helper.func.getDictProcCreation('fname'));
+        await mysql.queryToMaster(helper.func.getDictProcCreation('sname'));
+        await mysql.queryToMaster(helper.func.getDictProcCreation('country'));
+        await mysql.queryToMaster(helper.func.getDictProcCreation('city'));
+        await mysql.queryToMaster(helper.func.getDictProcCreation('interest'));
+        await mysql.queryToMaster(helper.func.getDictProcCreation('status'));
+        
     } catch (error) {
         log(error);
     }

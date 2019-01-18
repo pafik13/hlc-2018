@@ -862,32 +862,7 @@ function dbmiddle(req, res, next) {
     
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
-
-    if (acc.country){
-      if (!COUNTRIES[acc.country]) {
-        console.log(`NOT_FOUND_COUNTRY: ${acc.country}`);
-      }
-    }
     
-    if (acc.city){
-      if (!CITIES[acc.city]) {
-        console.log(`NOT_FOUND_CITY: ${acc.city}`);
-      }
-    }
-    
-    if (acc.fname){
-      if (!FNAMES[acc.fname]) {
-        console.log(`NOT_FOUND_FNAME: ${acc.fname}`);
-      }
-    }
-    
-    if (acc.sname){
-      if (!SNAMES[acc.sname]) {
-        console.log(`NOT_FOUND_SNAME: ${acc.fname}`);
-      }
-    }
-    
-
     if (acc.likes) {
       const a_likes = acc.likes;
       if (a_likes.length) {
@@ -897,7 +872,7 @@ function dbmiddle(req, res, next) {
             likee: a_likes[i].id,
             liker: acc.id,
             ts: a_likes[i].ts,
-          }
+          };
           if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
           if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
           if (!Number.isInteger(like.likee)) return res.status(400).json({});
@@ -917,17 +892,47 @@ function dbmiddle(req, res, next) {
         }
       }
     }
+    
+    let rows = [];
+    if (acc.country){
+      if (!COUNTRIES[acc.country]) {
+        rows = await mysql.queryToMaster('CALL insert_country(?)', [acc.country]);
+        COUNTRIES[acc.country] = rows[0][0].id;
+      }
+    }
+    
+    if (acc.city){
+      if (!CITIES[acc.city]) {
+        rows = await mysql.queryToMaster('CALL insert_city(?)', [acc.city]);
+        CITIES[acc.country] = rows[0][0].id;
+      }
+    }
+    
+    if (acc.fname){
+      if (!FNAMES[acc.fname]) {
+        rows = await mysql.queryToMaster('CALL insert_fname(?)', [acc.fname]);
+        FNAMES[acc.fname] = rows[0][0].id;
+      }
+    }
+    
+    if (acc.sname){
+      if (!SNAMES[acc.sname]) {
+        rows = await mysql.queryToMaster('CALL insert_sname(?)', [acc.sname]);
+        SNAMES[acc.sname] = rows[0][0].id;
+      }
+    }
 
     if (acc.interests) {
       const a_interests = acc.interests;
 
       if (a_interests.length) {
+        const interests = [];
         try {
           for (let i = 0, len = a_interests.length; i < len; i++){
             const interest = a_interests[i];
             if (!INTERESTS[interest]) {
-              INTERESTS[interest] = ++INTEREST;
-              mysql.queryToMaster(helper.func.getDictInsertion('interest'), [[[INTEREST, interest]]]);
+              rows = await mysql.queryToMaster('CALL insert_interest(?)', [interest]);
+              INTERESTS[interest] = rows[0][0].id;
             }
             interests.push([INTERESTS[interest], acc.id]);
           }
@@ -939,8 +944,6 @@ function dbmiddle(req, res, next) {
         }
       }
     }
-
- 
 
     let params = [];
 
@@ -966,8 +969,7 @@ function dbmiddle(req, res, next) {
       .catch(e => {
         console.log(`NEW_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
-        return res.status(500).json({e});
-      })
+      });
     ++INSERTS;
     if (INSERTS > 30) {
       INSERTS = 0;
@@ -1063,10 +1065,7 @@ function dbmiddle(req, res, next) {
       }
     }
     
-    // if (acc.phone) {
-    //   const rePhone = /^8\(9[0-9]{2}\)[0-9]{7}$/; 
-    //   if (!rePhone.test(acc.phone)) return res.status(400).json({});
-    // }
+    if (acc.premium && !(typeof acc.premium === 'object')) return res.status(400).json({});
     
     if (acc.likes) {
       const likes = acc.likes;
@@ -1075,18 +1074,17 @@ function dbmiddle(req, res, next) {
         if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
       }
     }
+    
+    
 
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
     const params = [];
     
     if (acc.premium) {
-      if (!(typeof acc.premium === 'object')) {
-        return res.status(400).json({});
-      }
       const premium = acc.premium;
       fields.push('premium  = ?', 'pstart  = ?', 'pfinish  = ?');
-      params.push(1, premium.start, premium.finish);
+      params.push(!premium.start ? 1 : null, premium.start, premium.finish);
       delete acc.premium;
     }
     if (acc.interests) return res.status(202).json({});
