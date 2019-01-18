@@ -1069,6 +1069,7 @@ function dbmiddle(req, res, next) {
     
     if (acc.likes) {
       const likes = acc.likes;
+      if (!likes.length) monet.queryAsyncMaster('DELETE FROM likes WHERE liker = ?', id);
       for (let i = 0, len = likes.length; i < len ;i++) {
         const like = likes[i];
         if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
@@ -1087,7 +1088,12 @@ function dbmiddle(req, res, next) {
       params.push(!premium.start ? 1 : null, premium.start, premium.finish);
       delete acc.premium;
     }
-    if (acc.interests) return res.status(202).json({});
+    if (acc.interests) {
+      const interests = acc.interests;
+      if (!interests.length) mysql.queryToMaster('DELETE FROM accounts_interest WHERE acc_id = ?', id);
+      delete acc.interests;
+    }
+    
     // return res.status(202).json({});
     for (let prop in acc) {
       if (acc.hasOwnProperty(prop)) {
