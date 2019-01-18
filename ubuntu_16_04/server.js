@@ -525,7 +525,7 @@ function dbmiddle(req, res, next) {
       if (check.length > 1) { /* console.timeEnd(label); */ return res.status(400).json([]); }
     }
     
-    if (q.likes) { /* console.timeEnd(label); */ return res.status(200).json({groups: []});}
+    // if (q.likes) { /* console.timeEnd(label); */ return res.status(200).json({groups: []});}
 
     const wheres = [];
     let limit = 50;
@@ -556,6 +556,29 @@ function dbmiddle(req, res, next) {
             hasInterests = true;
             wheres.push(`interest = ${INTERESTS[val]}`);
             break;
+          case 'likes': 
+            const lbl = label + ':likes';
+            console.time(lbl);
+          
+            const lSQL = `
+              SELECT liker
+                FROM likes 
+               WHERE likee = ${val};`;            
+            try {
+              log(lSQL);
+              const likers = await monet.queryAsync(lSQL);
+              if (!likers.data.length) return res.status(200).json({groups: []});
+              
+              const ids = likers.data.map(l => l[0]).join(',');
+              wheres.push(`id IN (${ids})`);
+            } catch(e) {
+              console.timeEnd(lbl);
+              console.error(e);
+              return res.status(500).json([]);
+            }
+            
+            console.timeEnd(lbl);
+            break;    
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
               switch (prop) {
@@ -693,8 +716,12 @@ function dbmiddle(req, res, next) {
     wheres.push(`acc_i.interest in (select interest from accounts_interest where acc_id = ${id})`);
     wheres.push(`acc_id != ${id}`);
     let sql = `
-      SELECT id, email, status, fname, sname, birth, premium, pstart, pfinish
-           , case status when 'свободны' then 1000 when 'всё сложно' then 2000 when 'заняты' then 3000 end as s_ind
+      SELECT id, email
+           , (SELECT status.name FROM status WHERE status.id = status) as status
+           , (SELECT fname.name FROM fname WHERE fname.id = fname) as fname
+           , (SELECT sname.name FROM sname WHERE sname.id = sname) as sname
+           , birth, premium, pstart, pfinish
+           , case status when 1 then 1000 when 3 then 2000 when 2 then 3000 end as s_ind
            , i.cnt
            , (select abs(accounts.birth - a.birth) from accounts a where a.id = ${id}) as b_diff
         FROM accounts
