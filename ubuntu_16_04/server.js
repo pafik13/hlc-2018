@@ -938,7 +938,7 @@ function dbmiddle(req, res, next) {
     if (!likes) return res.status(400).json({});
     if (!Array.isArray(likes)) return res.status(400).json({});
     
-    const res = await monet.queryAsync('START TRANSACTION;');
+    const params = [];
     for (let i = 0, len = likes.length; i < len; i++) {
       const like = likes[i];
       if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
@@ -950,12 +950,19 @@ function dbmiddle(req, res, next) {
 
       const rows = await mysql.queryToReplica(`SELECT * FROM accounts WHERE id = ${like.liker};`);
       const acc = rows[0];
-      const res = await monet.queryAsync(`
-        INSERT INTO likes (likee, liker, ts, ctry, city, sex)
-        VALUES (${like.likee}, ${like.liker}, ${like.ts}, ${acc.country}, ${acc.city}, ${acc.sex});  
-      `)
+      params.push([like.likee, like.liker, like.ts, acc.country, acc.city, acc.sex]);
     }
-    const res = await monet.queryAsync('COMMIT;');
+    try {
+      const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
+      await monet.queryAsync(`
+        INSERT INTO likes (likee, liker, ts, ctry, city, sex)
+        VALUES ${values};  
+      `);
+    } catch (e) {
+      console.error(e);
+      console.timeEnd(lbl);
+      return res.status(400).json({});
+    }
     console.timeEnd(lbl);
     res.status(202).json({});
   });
