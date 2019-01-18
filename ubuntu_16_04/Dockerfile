@@ -93,7 +93,7 @@ COPY *.json ./
 ENV INIT_DB="CREATE DATABASE IF NOT EXISTS acc CHARACTER SET utf8 COLLATE utf8_bin;SET GLOBAL max_heap_table_size = 1024 * 1024 * 768;SET GLOBAL tmp_table_size = 1024 * 1024 * 768;SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;"
 ENTRYPOINT date +%H:%M:%S:%N && monetdbd start ./monet/db && date +%H:%M:%S:%N && find /var/lib/mysql -type f -exec touch {} \; && date +%H:%M:%S:%N && service mysql start && date +%H:%M:%S:%N && mysql -uroot -e "${INIT_DB}" && node --expose-gc boot.js && pm2 start pm2.json --env production && pm2 logs
 
-ENV VERSION=1.0.3
+ENV VERSION=1.0.4
 
 EXPOSE 80
 # CMD [ "npm", "start" ]

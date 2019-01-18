@@ -286,7 +286,7 @@ function dbmiddle(req, res, next) {
             break;   
           case 'likes_contains':
             const lbl = label + ':likes_contains';
-            console.time(lbl);
+            // console.time(lbl);
             /* console.timeEnd(label); */ 
             // return res.status(200).json({accounts: []});
             valArr = val.split(',');
@@ -319,12 +319,12 @@ function dbmiddle(req, res, next) {
               const ids = likers.data.map(l => l[0]).join(',');
               wheres.push(`id IN (${ids})`);
             } catch(e) {
-              console.timeEnd(lbl);
+              // console.timeEnd(lbl);
               console.error(e);
               return res.status(500).json([]);
             }
             
-            console.timeEnd(lbl);
+            // console.timeEnd(lbl);
             break;             
         default:
           const arr = prop.split('_');
@@ -557,8 +557,8 @@ function dbmiddle(req, res, next) {
             wheres.push(`interest = ${INTERESTS[val]}`);
             break;
           case 'likes': 
-            const lbl = label + ':likes';
-            console.time(lbl);
+            // const lbl = label + ':likes';
+            // console.time(lbl);
           
             const lSQL = `
               SELECT liker
@@ -572,12 +572,12 @@ function dbmiddle(req, res, next) {
               const ids = likers.data.map(l => l[0]).join(',');
               wheres.push(`id IN (${ids})`);
             } catch(e) {
-              console.timeEnd(lbl);
+              // console.timeEnd(lbl);
               console.error(e);
               return res.status(500).json([]);
             }
             
-            console.timeEnd(lbl);
+            // console.timeEnd(lbl);
             break;    
           default:
             if (helper.GROUP_FILTER_FIELDS.includes(prop)) {
@@ -928,6 +928,9 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/likes', async (req, res) => {
+    const lbl = 'post_likes';
+    console.time(lbl);
+
     const log = debug.extend('likes');
     log(req.body);
 
@@ -935,6 +938,7 @@ function dbmiddle(req, res, next) {
     if (!likes) return res.status(400).json({});
     if (!Array.isArray(likes)) return res.status(400).json({});
     
+    const res = await monet.queryAsync('START TRANSACTION;');
     for (let i = 0, len = likes.length; i < len; i++) {
       const like = likes[i];
       if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
@@ -943,8 +947,16 @@ function dbmiddle(req, res, next) {
 
       if (like.liker > MAX_ID) return res.status(400).json({});
       if (like.likee > MAX_ID) return res.status(400).json({});
-    }
 
+      const rows = await mysql.queryToReplica(`SELECT * FROM accounts WHERE id = ${like.liker};`);
+      const acc = rows[0];
+      const res = await monet.queryAsync(`
+        INSERT INTO likes (likee, liker, ts, ctry, city, sex)
+        VALUES (${like.likee}, ${like.liker}, ${like.ts}, ${acc.country}, ${acc.city}, ${acc.sex});  
+      `)
+    }
+    const res = await monet.queryAsync('COMMIT;');
+    console.timeEnd(lbl);
     res.status(202).json({});
   });
 
