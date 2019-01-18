@@ -863,6 +863,21 @@ function dbmiddle(req, res, next) {
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
     
+    let rows = [];
+    if (acc.country){
+      if (!COUNTRIES[acc.country]) {
+        rows = await mysql.queryToMaster('CALL insert_country(?)', [acc.country]);
+        COUNTRIES[acc.country] = rows[0][0].id;
+      }
+    }
+    
+    if (acc.city){
+      if (!CITIES[acc.city]) {
+        rows = await mysql.queryToMaster('CALL insert_city(?)', [acc.city]);
+        CITIES[acc.country] = rows[0][0].id;
+      }
+    }
+
     if (acc.likes) {
       const a_likes = acc.likes;
       if (a_likes.length) {
@@ -890,21 +905,6 @@ function dbmiddle(req, res, next) {
           console.error(e.code + ': ' + e.errno);
           return res.status(400).json({});
         }
-      }
-    }
-    
-    let rows = [];
-    if (acc.country){
-      if (!COUNTRIES[acc.country]) {
-        rows = await mysql.queryToMaster('CALL insert_country(?)', [acc.country]);
-        COUNTRIES[acc.country] = rows[0][0].id;
-      }
-    }
-    
-    if (acc.city){
-      if (!CITIES[acc.city]) {
-        rows = await mysql.queryToMaster('CALL insert_city(?)', [acc.city]);
-        CITIES[acc.country] = rows[0][0].id;
       }
     }
     
@@ -1067,17 +1067,52 @@ function dbmiddle(req, res, next) {
     
     if (acc.premium && !(typeof acc.premium === 'object')) return res.status(400).json({});
     
-    if (acc.likes) {
-      const likes = acc.likes;
-      if (!likes.length) monet.queryAsyncMaster('DELETE FROM likes WHERE liker = ?', id);
-      for (let i = 0, len = likes.length; i < len ;i++) {
-        const like = likes[i];
-        if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+    let rows = [];
+    if (acc.country){
+      if (!COUNTRIES[acc.country]) {
+        rows = await mysql.queryToMaster('CALL insert_country(?)', [acc.country]);
+        COUNTRIES[acc.country] = rows[0][0].id;
       }
     }
     
-    
+    if (acc.city){
+      if (!CITIES[acc.city]) {
+        rows = await mysql.queryToMaster('CALL insert_city(?)', [acc.city]);
+        CITIES[acc.country] = rows[0][0].id;
+      }
+    }
 
+    if (acc.likes) {
+      const likes = acc.likes;
+      monet.queryAsyncMaster(`DELETE FROM likes WHERE liker = ${id};`);
+      if (!likes.length) {
+        const plikes = [];
+        for (let i = 0, len = likes.length; i < len; i++) {
+          const like = {
+            likee: likes[i].id,
+            liker: id,
+            ts: likes[i].ts,
+          };
+          if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.likee)) return res.status(400).json({});
+
+          if (like.liker > MAX_ID) return res.status(400).json({});
+          if (like.likee > MAX_ID) return res.status(400).json({});
+
+          plikes.push([like.likee, like.liker, like.ts, COUNTRIES[acc.country], CITIES[acc.city], SEX[acc.sex]]);
+        }
+
+        try {
+          await monet.insertLikesAsync(plikes);
+        } catch(e) {
+          console.log(`AL_UPD_ERROR: ${req.query.query_id}`);
+          console.error(e.code + ': ' + e.errno);
+          return res.status(400).json({});
+        }
+      }
+    }
+    
     let sql = 'UPDATE accounts SET \n';
     const fields = [];
     const params = [];
@@ -1090,8 +1125,39 @@ function dbmiddle(req, res, next) {
     }
     if (acc.interests) {
       const interests = acc.interests;
-      if (!interests.length) mysql.queryToMaster('DELETE FROM accounts_interest WHERE acc_id = ?', id);
+      const pinterests = [];
+      mysql.queryToMaster('DELETE FROM accounts_interest WHERE acc_id = ?', [id]);
+      try {
+        for (let i = 0, len = interests.length; i < len; i++){
+          const interest = interests[i];
+          if (!INTERESTS[interest]) {
+            rows = await mysql.queryToMaster('CALL insert_interest(?)', [interest]);
+            INTERESTS[interest] = rows[0][0].id;
+          }
+          pinterests.push([INTERESTS[interest], id]);
+        }
+        await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [pinterests]);
+      } catch(e) {
+        console.log(`AI_UPD_ERROR: ${req.query.query_id}`);
+        console.error(e.code + ': ' + e.errno);
+        return res.status(400).json({});
+      }
+
       delete acc.interests;
+    }
+
+    if (acc.fname){
+      if (!FNAMES[acc.fname]) {
+        rows = await mysql.queryToMaster('CALL insert_fname(?)', [acc.fname]);
+        FNAMES[acc.fname] = rows[0][0].id;
+      }
+    }
+    
+    if (acc.sname){
+      if (!SNAMES[acc.sname]) {
+        rows = await mysql.queryToMaster('CALL insert_sname(?)', [acc.sname]);
+        SNAMES[acc.sname] = rows[0][0].id;
+      }
     }
     
     // return res.status(202).json({});
@@ -1127,6 +1193,9 @@ function dbmiddle(req, res, next) {
         }
       }
     }
+    if (!params.length) return res.status(202).json({});
+
+
     params.push(id);
     sql = sql + fields.join(',\n') + "\n WHERE id = ?";
     // return res.status(202).json({});
@@ -1135,7 +1204,7 @@ function dbmiddle(req, res, next) {
       .catch(e => {
         console.log(`UPD_ERROR: ${req.query.query_id}`);
         console.error(e.code + ': ' + e.errno);
-        return res.status(500).json({e});
+        // return res.status(500).json({e});
       });
     ++UPDATES;
     if (UPDATES > 30) {
