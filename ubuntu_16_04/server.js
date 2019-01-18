@@ -31,6 +31,7 @@ const SNAMES = {};
 
 let INSERTS = 0;
 let UPDATES = 0;
+let LIKES = 0;
 
 const mysql = new database.mysql({
      mysql: {
@@ -928,7 +929,7 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/likes', async (req, res) => {
-    const lbl = 'post_likes';
+    const lbl = 'post_likes_' + req.query.query_id;
     console.time(lbl);
 
     const log = debug.extend('likes');
@@ -938,6 +939,7 @@ function dbmiddle(req, res, next) {
     if (!likes) return res.status(400).json({});
     if (!Array.isArray(likes)) return res.status(400).json({});
     
+    // await monet.queryAsyncMaster('START TRANSACTION;');
     const params = [];
     for (let i = 0, len = likes.length; i < len; i++) {
       const like = likes[i];
@@ -952,17 +954,22 @@ function dbmiddle(req, res, next) {
       const acc = rows[0];
       params.push([like.likee, like.liker, like.ts, acc.country, acc.city, acc.sex]);
     }
+    LIKES++;
     try {
-      const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
-      await monet.queryAsyncMaster(`
-        INSERT INTO likes (likee, liker, ts, ctry, city, sex)
-        VALUES ${values};  
-      `);
+      await monet.insertLikesAsync(params);
+      // const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
+      // await monet.queryAsyncMaster(`
+      //   INSERT INTO likes (likee, liker, ts, ctry, city, sex)
+      //   VALUES ${values};  
+      // `);
     } catch (e) {
       console.error(e);
       console.timeEnd(lbl);
       return res.status(400).json({});
     }
+    // if (LIKES > 10) {
+    //   await monet.queryAsyncMaster('COMMIT;');
+    // }
     console.timeEnd(lbl);
     res.status(202).json({});
   });

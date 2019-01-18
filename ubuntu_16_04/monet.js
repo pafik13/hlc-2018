@@ -58,6 +58,8 @@ const myPool = genericPool.createPool(factory, poolOpts);
 
 const master = new MDB(config.monetConn);
 master.connect();
+// master.query('START TRANSACTION;');
+
 async function queryAsyncMaster(sql)
  {
     return new Promise((resolve, reject) => {
@@ -73,8 +75,30 @@ async function queryAsyncMaster(sql)
     });
  }
 
+ const C_SQL_INSERT_LIKE = `
+    INSERT INTO likes (likee, liker, ts, ctry, city, sex)
+    VALUES (?, ?, ?, ?, ?, ?)
+ `;
+ async function insertLikesAsync(likes)
+ {
+    return new Promise((resolve, reject) => {
+      master.prepare(C_SQL_INSERT_LIKE)
+        .then(prepResult => {
+          for (let l = 0, len = likes.len; l < len; l++){
+            prepResult.exec(likes[l]);
+          }
+          prepResult.release();
+          resolve();
+        })
+        .catch(err => {
+          log(err);
+          return reject(err);
+        });
+    });
+ }
 
 exports = module.exports = {
   queryAsync,
-  queryAsyncMaster
+  queryAsyncMaster,
+  insertLikesAsync
 };
