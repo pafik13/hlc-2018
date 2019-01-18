@@ -56,6 +56,25 @@ const myPool = genericPool.createPool(factory, poolOpts);
     });
  }
 
+const master = new MDB(config.monetConn);
+master.connect();
+async function queryAsyncMaster(sql)
+ {
+    return new Promise((resolve, reject) => {
+      master.query(sql)
+        .then(rows => {
+            // console.timeEnd(lbl);
+            return resolve(rows);
+        })
+        .catch(err => {
+          log(err);
+          return reject(err);
+        });
+    });
+ }
+
+
 exports = module.exports = {
-  queryAsync
-}
+  queryAsync,
+  queryAsyncMaster
+};

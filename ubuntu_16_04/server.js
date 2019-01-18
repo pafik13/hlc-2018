@@ -954,7 +954,7 @@ function dbmiddle(req, res, next) {
     }
     try {
       const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
-      await monet.queryAsync(`
+      await monet.queryAsyncMaster(`
         INSERT INTO likes (likee, liker, ts, ctry, city, sex)
         VALUES ${values};  
       `);
