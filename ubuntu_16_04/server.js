@@ -856,22 +856,94 @@ function dbmiddle(req, res, next) {
     
     if (!Number.isInteger(req.body.id)) return res.status(400).json({});
     
-    MAX_ID = Math.max(MAX_ID,req.body.id);
+    MAX_ID = Math.max(MAX_ID, req.body.id);
     const acc = req.body;
     if (acc.status && !STATUSES[acc.status]) return res.status(400).json({});
     
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
+
+    if (acc.country){
+      if (!COUNTRIES[acc.country]) {
+        console.log(`NOT_FOUND_COUNTRY: ${acc.country}`);
+      }
+    }
     
-    // console.time('findEmail');
-    // let rows = [];
-    // rows = await req.db.queryToReplica(`SELECT id FROM accounts WHERE email = '${acc.email}';`);
-    // console.timeEnd('findEmail');
-    // if (rows.length) return res.status(400).json({});
+    if (acc.city){
+      if (!CITIES[acc.city]) {
+        console.log(`NOT_FOUND_CITY: ${acc.city}`);
+      }
+    }
     
+    if (acc.fname){
+      if (!FNAMES[acc.fname]) {
+        console.log(`NOT_FOUND_FNAME: ${acc.fname}`);
+      }
+    }
+    
+    if (acc.sname){
+      if (!SNAMES[acc.sname]) {
+        console.log(`NOT_FOUND_SNAME: ${acc.fname}`);
+      }
+    }
+    
+
+    if (acc.likes) {
+      const a_likes = acc.likes;
+      if (a_likes.length) {
+        const params = [];
+        for (let i = 0, len = a_likes.length; i < len; i++) {
+          const like = {
+            likee: a_likes[i].id,
+            liker: acc.id,
+            ts: a_likes[i].ts,
+          }
+          if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.likee)) return res.status(400).json({});
+  
+          if (like.liker > MAX_ID) return res.status(400).json({});
+          if (like.likee > MAX_ID) return res.status(400).json({});
+  
+          params.push([like.likee, like.liker, like.ts, COUNTRIES[acc.country], CITIES[acc.city], SEX[acc.sex]]);
+        }
+  
+        try {
+          await monet.insertLikesAsync(params);
+        } catch(e) {
+          console.log(`AL_NEW_ERROR: ${req.query.query_id}`);
+          console.error(e.code + ': ' + e.errno);
+          return res.status(400).json({});
+        }
+      }
+    }
+
+    if (acc.interests) {
+      const a_interests = acc.interests;
+
+      if (a_interests.length) {
+        try {
+          for (let i = 0, len = a_interests.length; i < len; i++){
+            const interest = a_interests[i];
+            if (!INTERESTS[interest]) {
+              INTERESTS[interest] = ++INTEREST;
+              mysql.queryToMaster(helper.func.getDictInsertion('interest'), [[[INTEREST, interest]]]);
+            }
+            interests.push([INTERESTS[interest], acc.id]);
+          }
+          await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        } catch(e) {
+          console.log(`AI_NEW_ERROR: ${req.query.query_id}`);
+          console.error(e.code + ': ' + e.errno);
+          return res.status(400).json({});
+        }
+      }
+    }
+
+ 
+
     let params = [];
-    const likes = [];
-    const interests = [];
+
     if (acc.premium) {
       if (!(typeof acc.premium === 'object')) {
         return res.status(400).json({});
@@ -879,7 +951,7 @@ function dbmiddle(req, res, next) {
       params = [
         acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
         COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
-        acc.birth, 1, acc.premium.start, acc.premium.finish
+        acc.birth, !acc.premium.start ? 1 : null, acc.premium.start, acc.premium.finish
       ];
     } else {
       params = [
@@ -905,64 +977,13 @@ function dbmiddle(req, res, next) {
       // console.timeEnd(label);
     }
     // return res.status(201).json({})
-    
-    if (acc.interests) {
-      const a_interests = acc.interests;
-
-      if (a_interests.length) {
-        try {
-          for (let i = 0, len = a_interests.length; i < len; i++){
-            const interest = a_interests[i];
-            if (!INTERESTS[interest]) {
-              INTERESTS[interest] = ++INTEREST;
-              mysql.queryToMaster(helper.func.getDictInsertion('interest'), [[[INTEREST, interest]]]);
-            }
-            interests.push([INTERESTS[interest], acc.id]);
-          }
-          await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
-        } catch(e) {
-          console.log(`AI_NEW_ERROR: ${req.query.query_id}`);
-          console.error(e.code + ': ' + e.errno);
-          return res.status(400).json({});
-        }
-      }
-    }
-
-    if (acc.likes) {
-      const a_likes = acc.likes;
-      if (a_likes.length) {
-        const params = [];
-        for (let i = 0, len = a_likes.length; i < len; i++) {
-          const like = {
-            likee: a_likes[i].id,
-            liker: acc.id,
-            ts: a_likes[i].ts,
-          }
-          if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
-          if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
-          if (!Number.isInteger(like.likee)) return res.status(400).json({});
-  
-          if (like.liker > MAX_ID) return res.status(400).json({});
-          if (like.likee > MAX_ID) return res.status(400).json({});
-  
-          params.push([like.likee, like.liker, like.ts, acc.country, acc.city, acc.sex]);
-        }
-  
-        try {
-          await monet.insertLikesAsync(params);
-        } catch(e) {
-          console.log(`AL_NEW_ERROR: ${req.query.query_id}`);
-          console.error(e.code + ': ' + e.errno);
-          return res.status(400).json({});
-        }
-      }
-    }
+ 
     return res.status(201).json({});
   });
 
   app.post('/accounts/likes', async (req, res) => {
-    const lbl = 'post_likes_' + req.query.query_id;
-    console.time(lbl);
+    // const lbl = 'post_likes_' + req.query.query_id;
+    // console.time(lbl);
 
     const log = debug.extend('likes');
     log(req.body);
@@ -988,7 +1009,7 @@ function dbmiddle(req, res, next) {
     }
     LIKES++;
     try {
-      await monet.insertLikesAsync(params);
+      // await monet.insertLikesAsync(params);
       // const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
       // await monet.queryAsyncMaster(`
       //   INSERT INTO likes (likee, liker, ts, ctry, city, sex)
@@ -996,13 +1017,13 @@ function dbmiddle(req, res, next) {
       // `);
     } catch (e) {
       console.error(e);
-      console.timeEnd(lbl);
+      // console.timeEnd(lbl);
       return res.status(400).json({});
     }
     // if (LIKES > 10) {
     //   await monet.queryAsyncMaster('COMMIT;');
     // }
-    console.timeEnd(lbl);
+    // console.timeEnd(lbl);
     res.status(202).json({});
   });
 
@@ -1028,7 +1049,7 @@ function dbmiddle(req, res, next) {
     const acc = req.body;
     if (acc.joined && !Number.isInteger(acc.joined)) return res.status(400).json({});
     if (acc.birth && !Number.isInteger(acc.birth)) return res.status(400).json({});
-    if (acc.sex && !SEX[acc.sex]) return res.status(400).json({});
+    if (acc.sex && !['m', 'f'].includes(acc.sex)) return res.status(400).json({});
 
     if (acc.status && !STATUSES[acc.status]) return res.status(400).json({});
 
