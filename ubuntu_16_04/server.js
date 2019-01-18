@@ -29,6 +29,8 @@ const CITIES = {};
 const FNAMES = {};
 const SNAMES = {};
 
+const NOW = new Date() / 1000;
+
 let INSERTS = 0;
 let UPDATES = 0;
 let LIKES = 0;
@@ -183,8 +185,8 @@ function dbmiddle(req, res, next) {
   app.get('/accounts/filter', async (req, res) => {
     const label = `filter_parse_${req.query.query_id}`;
     /* console.time(label); */
-    // const now = new Date() / 1000;
-    const now = 1546083844;
+    
+    // const now = 1546083844;
     const log = debug.extend('filter');
     
     if (UPDATES || INSERTS) {
@@ -270,7 +272,7 @@ function dbmiddle(req, res, next) {
             fields.add('premium');
             fields.add('pstart');
             fields.add('pfinish');
-            wheres.push(`${now} between pstart and pfinish`);
+            wheres.push(`${NOW} between pstart and pfinish`);
             break;
           case 'interests_any':
           case 'interests_contains':
@@ -902,30 +904,56 @@ function dbmiddle(req, res, next) {
       await req.db.queryToMaster('COMMIT;');
       // console.timeEnd(label);
     }
-    return res.status(201).json({})
+    // return res.status(201).json({})
     
     if (acc.interests) {
-      acc.interests.forEach((interest) => interests.push([interest, acc.id]));
-    }
-    
-    if (acc.likes) {
-      acc.likes.forEach((like) => likes.push([like.id, like.ts, acc.id]));
+      const a_interests = acc.interests;
+
+      if (a_interests.length) {
+        try {
+          for (let i = 0, len = a_interests.length; i < len; i++){
+            const interest = a_interests[i];
+            if (!INTERESTS[interest]) {
+              INTERESTS[interest] = ++INTEREST;
+              mysql.queryToMaster(helper.func.getDictInsertion('interest'), [[[INTEREST, interest]]]);
+            }
+            interests.push([INTERESTS[interest], acc.id]);
+          }
+          await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+        } catch(e) {
+          console.log(`AI_NEW_ERROR: ${req.query.query_id}`);
+          console.error(e.code + ': ' + e.errno);
+          return res.status(400).json({});
+        }
+      }
     }
 
-    try {
-      if (likes.length) {
-        await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNTS_LIKE, [likes]);
+    if (acc.likes) {
+      const a_likes = acc.likes;
+      if (a_likes.length) {
+        const params = [];
+        for (let i = 0, len = a_likes.length; i < len; i++) {
+          const like = a_likes[i];
+          if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
+          if (!Number.isInteger(like.likee)) return res.status(400).json({});
+  
+          if (like.liker > MAX_ID) return res.status(400).json({});
+          if (like.likee > MAX_ID) return res.status(400).json({});
+  
+          params.push([like.likee, like.liker, like.ts, acc.country, acc.city, acc.sex]);
+        }
+  
+        try {
+          await monet.insertLikesAsync(params);
+        } catch(e) {
+          console.log(`AL_NEW_ERROR: ${req.query.query_id}`);
+          console.error(e.code + ': ' + e.errno);
+          return res.status(400).json({});
+        }
       }
-      if (interests.length) {
-        await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
-      }
-      // await req.db.queryToReplica(helper.SQL_INSERT_ACCOUNT, params);
-      return res.status(201).json({});
-    } catch(e) {
-      console.log(`NEW_ERROR: ${req.query.query_id}`);
-      console.error(e.code + ': ' + e.errno);
-      return res.status(400).json({});
     }
+    return res.status(201).json({});
   });
 
   app.post('/accounts/likes', async (req, res) => {
