@@ -933,7 +933,11 @@ function dbmiddle(req, res, next) {
       if (a_likes.length) {
         const params = [];
         for (let i = 0, len = a_likes.length; i < len; i++) {
-          const like = a_likes[i];
+          const like = {
+            likee: a_likes[i].id,
+            liker: acc.id,
+            ts: a_likes[i].ts,
+          }
           if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
           if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
           if (!Number.isInteger(like.likee)) return res.status(400).json({});
