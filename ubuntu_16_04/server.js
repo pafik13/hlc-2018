@@ -1006,7 +1006,8 @@ function dbmiddle(req, res, next) {
     const likes = req.body.likes;
     if (!likes) return res.status(400).json({});
     if (!Array.isArray(likes)) return res.status(400).json({});
-    
+    if (!likes.length) return res.status(202).json({});
+
     // await monet.queryAsyncMaster('START TRANSACTION;');
     const params = [];
     for (let i = 0, len = likes.length; i < len; i++) {
@@ -1050,9 +1051,13 @@ function dbmiddle(req, res, next) {
       return res.status(400).json({});
     }
     if (LIKES > 30) {
-      const lbl_copy = label + ':copy'
+      const lbl_copy = label + ':copy';
       console.time(lbl_copy);
-      const res = await monet.queryAsyncMaster(SQL_CSV_FILE);   
+      await monet.queryAsyncMaster(SQL_CSV_FILE);   
+      CSV_WRITER = createArrayCsvWriter({
+        header: ['likee', 'liker', 'ts', 'country', 'city', 'sex'],
+        path: TEMP_CSV_FILE
+      });
       console.timeEnd(lbl_copy); 
     }
     res.status(202).json({});
@@ -1284,8 +1289,8 @@ async function start() {
   rows = await mysql.queryToMaster('SELECT id, country, city, sex FROM accounts;');
   for (let r = 0, len = rows.length; r < len; r++){
     const row = rows[r];
-    CACHE_CITIES[row.id] = Boolean(row.city) ? acc.city : 0;
-    CACHE_CTRIES[row.id] = Boolean(row.country) ? acc.country : 0;
+    CACHE_CITIES[row.id] = Boolean(row.city) ? row.city : 0;
+    CACHE_CTRIES[row.id] = Boolean(row.country) ? row.country : 0;
     CACHE_SEX[row.id] = row.sex;
   }
 
