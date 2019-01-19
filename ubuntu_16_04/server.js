@@ -8,10 +8,17 @@ const database = require('./mysql');
 const helper = require('./helper');
 const config = require('./config');
 const monet = require('./monet.js');
+const { createArrayCsvWriter } = require('csv-writer');
+
 
 // Constants
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
+const INSTANCE_ID = process.env.NODE_APP_INSTANCE || 0;
+const TEMP_CSV_FILE = `/tmp/likes_${INSTANCE_ID}.csv`;
+
+
+let CSV_WRITER = false;
 let MAX_ID = 0;
 const STATUSES = {
   "свободны": 1,
@@ -984,7 +991,7 @@ function dbmiddle(req, res, next) {
   });
 
   app.post('/accounts/likes', async (req, res) => {
-    // const lbl = 'post_likes_' + req.query.query_id;
+    const label = 'post_likes_' + req.query.query_id;
     // console.time(lbl);
 
     const log = debug.extend('likes');
@@ -1007,10 +1014,19 @@ function dbmiddle(req, res, next) {
 
       const rows = await mysql.queryToReplica(`SELECT * FROM accounts WHERE id = ${like.liker};`);
       const acc = rows[0];
-      params.push([like.likee, like.liker, like.ts, acc.country, acc.city, acc.sex]);
+      params.push([
+        like.id, acc.id, like.ts, 
+        Boolean(acc.country) ? acc.country : 0,
+        Boolean(acc.city) ? acc.city : 0,
+        acc.sex
+      ]);
     }
     LIKES++;
     try {
+      const lbl_write = label + ':write'
+      console.time(lbl_write);
+      await csvWriter.writeRecords(params);      // returns a promise
+      console.timeEnd(lbl_write);
       // await monet.insertLikesAsync(params);
       // const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
       // await monet.queryAsyncMaster(`
@@ -1246,6 +1262,11 @@ async function start() {
   rows = await mysql.queryToMaster('SELECT id, name FROM sname;');
   rows.forEach(i => SNAMES[i.name] = i.id);
   await mysql.queryToMaster('SET autocommit=0;');
+
+  CSV_WRITER = createArrayCsvWriter({
+    header: ['likee', 'liker', 'ts', 'country', 'city', 'sex'],
+    path: TEMP_CSV_FILE
+  });
   return;
 }
 
