@@ -1025,7 +1025,7 @@ function dbmiddle(req, res, next) {
     try {
       const lbl_write = label + ':write'
       console.time(lbl_write);
-      await csvWriter.writeRecords(params);      // returns a promise
+      await CSV_WRITER.writeRecords(params);      // returns a promise
       console.timeEnd(lbl_write);
       // await monet.insertLikesAsync(params);
       // const values = params.map(p => `(${p[0]}, ${p[1]}, ${p[2]}, ${p[3]}, ${p[4]}, ${p[5]})`).join(',');
