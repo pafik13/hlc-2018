@@ -38,6 +38,11 @@ const SNAMES = {};
 
 const NOW = new Date() / 1000;
 
+const CACHE_CITIES = new Uint16Array(1500000);
+const CACHE_CTRIES = new Uint8Array(1500000);
+const CACHE_SEX = new Uint8Array(1500000);
+
+
 let INSERTS = 0;
 let UPDATES = 0;
 let LIKES = 0;
@@ -1011,15 +1016,21 @@ function dbmiddle(req, res, next) {
 
       if (like.liker > MAX_ID) return res.status(400).json({});
       if (like.likee > MAX_ID) return res.status(400).json({});
-
-      const rows = await mysql.queryToReplica(`SELECT * FROM accounts WHERE id = ${like.liker};`);
-      const acc = rows[0];
+      
+      if (typeof CACHE_SEX[like.liker] === 'undefined') {
+        const rows = await mysql.queryToReplica(`SELECT * FROM accounts WHERE id = ${like.liker};`);
+        const acc = rows[0];
+        CACHE_CITIES[acc.id] = acc.city;
+        CACHE_CTRIES[acc.id] = acc.country;
+        CACHE_SEX[acc.id] = acc.sex;
+      }
+    
       params.push([
-        like.id, acc.id, like.ts, 
-        Boolean(acc.country) ? acc.country : 0,
-        Boolean(acc.city) ? acc.city : 0,
-        acc.sex
-      ]);
+        like.likee, like.liker, like.ts, 
+        Boolean(CACHE_CTRIES[like.liker]) ? CACHE_CTRIES[like.liker] : 0,
+        Boolean(CACHE_CITIES[like.liker]) ? CACHE_CITIES[like.liker] : 0,
+        CACHE_SEX[like.liker]
+      ]);  
     }
     LIKES++;
     try {
@@ -1263,6 +1274,14 @@ async function start() {
   rows.forEach(i => SNAMES[i.name] = i.id);
   await mysql.queryToMaster('SET autocommit=0;');
 
+  rows = await mysql.queryToMaster('SELECT id, country, city, sex FROM accounts;');
+  for (let r = 0, len = rows.length; r < len; r++){
+    const row = rows[r];
+    CACHE_CITIES[row.id] = row.city;
+    CACHE_CTRIES[row.id] = row.country;
+    CACHE_SEX[row.id] = row.sex;
+  }
+  
   CSV_WRITER = createArrayCsvWriter({
     header: ['likee', 'liker', 'ts', 'country', 'city', 'sex'],
     path: TEMP_CSV_FILE
