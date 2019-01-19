@@ -863,6 +863,9 @@ function dbmiddle(req, res, next) {
     const reEmail = /^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/; 
     if (!reEmail.test(acc.email)) return res.status(400).json({});
     
+    if (acc.premium && !(typeof acc.premium === 'object')) return res.status(400).json({});
+
+    
     let rows = [];
     if (acc.country){
       if (!COUNTRIES[acc.country]) {
@@ -879,14 +882,14 @@ function dbmiddle(req, res, next) {
     }
 
     if (acc.likes) {
-      const a_likes = acc.likes;
-      if (a_likes.length) {
-        const params = [];
-        for (let i = 0, len = a_likes.length; i < len; i++) {
+      const likes = acc.likes;
+      if (likes.length) {
+        const plikes = [];
+        for (let i = 0, len = likes.length; i < len; i++) {
           const like = {
-            likee: a_likes[i].id,
+            likee: likes[i].id,
             liker: acc.id,
-            ts: a_likes[i].ts,
+            ts: likes[i].ts,
           };
           if (!Number.isInteger(like.ts)) return res.status(400).json({}); 
           if (!Number.isInteger(like.liker)) return res.status(400).json({}); 
@@ -895,11 +898,11 @@ function dbmiddle(req, res, next) {
           if (like.liker > MAX_ID) return res.status(400).json({});
           if (like.likee > MAX_ID) return res.status(400).json({});
   
-          params.push([like.likee, like.liker, like.ts, COUNTRIES[acc.country], CITIES[acc.city], SEX[acc.sex]]);
+          plikes.push([like.likee, like.liker, like.ts, COUNTRIES[acc.country], CITIES[acc.city], SEX[acc.sex]]);
         }
   
         try {
-          await monet.insertLikesAsync(params);
+          await monet.insertLikesAsync(plikes);
         } catch(e) {
           console.log(`AL_NEW_ERROR: ${req.query.query_id}`);
           console.error(e.code + ': ' + e.errno);
@@ -923,20 +926,20 @@ function dbmiddle(req, res, next) {
     }
 
     if (acc.interests) {
-      const a_interests = acc.interests;
+      const interests = acc.interests;
 
-      if (a_interests.length) {
-        const interests = [];
+      if (interests.length) {
+        const pinterests = [];
         try {
-          for (let i = 0, len = a_interests.length; i < len; i++){
-            const interest = a_interests[i];
+          for (let i = 0, len = interests.length; i < len; i++){
+            const interest = interests[i];
             if (!INTERESTS[interest]) {
               rows = await mysql.queryToMaster('CALL insert_interest(?)', [interest]);
               INTERESTS[interest] = rows[0][0].id;
             }
-            interests.push([INTERESTS[interest], acc.id]);
+            pinterests.push([INTERESTS[interest], acc.id]);
           }
-          await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [interests]);
+          await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [pinterests]);
         } catch(e) {
           console.log(`AI_NEW_ERROR: ${req.query.query_id}`);
           console.error(e.code + ': ' + e.errno);
@@ -948,9 +951,6 @@ function dbmiddle(req, res, next) {
     let params = [];
 
     if (acc.premium) {
-      if (!(typeof acc.premium === 'object')) {
-        return res.status(400).json({});
-      }
       params = [
         acc.id, acc.email, FNAMES[acc.fname], SNAMES[acc.sname], STATUSES[acc.status], 
         COUNTRIES[acc.country], CITIES[acc.city], acc.phone, SEX[acc.sex], acc.joined,
@@ -1066,8 +1066,8 @@ function dbmiddle(req, res, next) {
     }
     
     if (acc.premium && !(typeof acc.premium === 'object')) return res.status(400).json({});
+
     
-    let rows = [];
     if (acc.country){
       if (!COUNTRIES[acc.country]) {
         rows = await mysql.queryToMaster('CALL insert_country(?)', [acc.country]);
@@ -1084,8 +1084,7 @@ function dbmiddle(req, res, next) {
 
     if (acc.likes) {
       const likes = acc.likes;
-      monet.queryAsyncMaster(`DELETE FROM likes WHERE liker = ${id};`);
-      if (!likes.length) {
+      if (likes.length) {
         const plikes = [];
         for (let i = 0, len = likes.length; i < len; i++) {
           const like = {
@@ -1104,7 +1103,9 @@ function dbmiddle(req, res, next) {
         }
 
         try {
+          await monet.queryAsyncMaster(`DELETE FROM likes WHERE liker = ${id};`);
           await monet.insertLikesAsync(plikes);
+          delete acc.likes;
         } catch(e) {
           console.log(`AL_UPD_ERROR: ${req.query.query_id}`);
           console.error(e.code + ': ' + e.errno);
