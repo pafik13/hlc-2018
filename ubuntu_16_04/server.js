@@ -52,7 +52,7 @@ const mysql = new database.mysql({
      mysql: {
         master: config.mysqlConn,
         // replicas: [config.mysqlConn, config.mysqlConn],
-        replicas: Array(10).fill(config.mysqlConn),
+        replicas: Array(6).fill(config.mysqlConn),
       mysqlReplication: true
     },
 });
@@ -1050,7 +1050,8 @@ function dbmiddle(req, res, next) {
       // console.timeEnd(lbl);
       return res.status(400).json({});
     }
-    if (LIKES > 30) {
+    if (LIKES > 75) {
+	  LIKES = 0;
       const lbl_copy = label + ':copy';
       console.time(lbl_copy);
       await monet.queryAsyncMaster(SQL_CSV_FILE);   
@@ -1161,7 +1162,6 @@ function dbmiddle(req, res, next) {
     if (acc.interests) {
       const interests = acc.interests;
       const pinterests = [];
-      mysql.queryToMaster('DELETE FROM accounts_interest WHERE acc_id = ?', [id]);
       try {
         for (let i = 0, len = interests.length; i < len; i++){
           const interest = interests[i];
@@ -1171,6 +1171,7 @@ function dbmiddle(req, res, next) {
           }
           pinterests.push([INTERESTS[interest], id]);
         }
+		await mysql.queryToMaster('DELETE FROM accounts_interest WHERE acc_id = ?', [id]);
         await mysql.queryToMaster(helper.SQL_INSERT_ACCOUNTS_INTEREST, [pinterests]);
       } catch(e) {
         console.log(`AI_UPD_ERROR: ${req.query.query_id}`);

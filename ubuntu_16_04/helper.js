@@ -113,7 +113,7 @@ const INDECES_SIMPLE_TEST = [
 ];
 
 const INDECES_SIMPLE_PROD = [
-  'phone', 'fname', 'sname',
+  'fname', 'sname',
 ];
 
 const INDECES_COMPOUND_TEST = [
@@ -149,7 +149,7 @@ function getDictCreation(tableName, idType = 'TINYINT') {
     ( id ${idType} UNSIGNED PRIMARY KEY AUTO_INCREMENT
     , name VARCHAR(50)
     , UNIQUE KEY (name)
-    );`;
+    ) ENGINE=MEMORY;`;
   log(cmd);
   return cmd;
 }

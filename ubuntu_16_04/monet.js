@@ -21,8 +21,8 @@ const factory = {
 };
  
 const poolOpts = {
-  max: 8, // maximum size of the pool
-  min: 4, // minimum size of the pool
+  max: 4, // maximum size of the pool
+  min: 2, // minimum size of the pool
 };
  
 const myPool = genericPool.createPool(factory, poolOpts);
